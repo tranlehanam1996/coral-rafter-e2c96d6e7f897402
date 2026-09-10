@@ -39,8 +39,8 @@ root.innerHTML = `
     <label>Notes<textarea name="notes" rows="3" maxlength="600"></textarea></label><p id="errors" class="errors"></p>
     <button type="submit">Add to plan</button></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
     <label class="file">Import JSON<input id="import" type="file" accept="application/json"></label></div></section>
-  <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><select id="filter"><option value="all">All categories</option>
-    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select></div><div id="plan"></div></section></main>
+  <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><select id="filter"><option value="all">All categories</option>
+    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div></section></main>
   <section class="panel week-panel"><div class="panel-title"><h2>Seven-day load</h2><label>Daily capacity
     <input id="capacity" type="number" min="15" max="480" step="15" value="90"></label></div><div id="week" class="week"></div></section>
 `;
@@ -71,6 +71,9 @@ document.querySelector<HTMLSelectElement>("#filter")!.addEventListener("change",
 capacity.addEventListener("input", () => render(store.all()));
 document.querySelector("#seed-export")!.addEventListener("click", () => download("records.json", exportJson(store.all()), "application/json"));
 document.querySelector("#csv")!.addEventListener("click", () => download("records.csv", exportCsv(store.all()), "text/csv"));
+document.querySelector("#clear-all")!.addEventListener("click", () => {
+  if (confirm("Clear all records from the store?")) store.replace([]);
+});
 document.querySelector<HTMLInputElement>("#import")!.addEventListener("change", async (event) => {
   const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;
   try { store.replace(importJson(await file.text(), theme)); errors.textContent = ""; }
@@ -96,6 +99,7 @@ function render(records: readonly LifeRecord[]): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-remove]")) button.onclick = () => store.remove(button.dataset.remove!);
   document.querySelector("#week")!.innerHTML = suggestDailyLoad(records, Number(capacity.value) || 90).map((day) => `<article class="day ${day.overloaded ? "over" : ""}">
     <span>${new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" })}</span><strong>${day.used} min</strong>
+    <div class="day-tasks">${day.entries.map(e => `<div class="day-task">${escapeHtml(e.item.title)}</div>`).join("")}</div>
     <small>${day.entries.length} item(s)</small></article>`).join("");
 }
 

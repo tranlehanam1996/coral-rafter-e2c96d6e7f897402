@@ -82,18 +82,44 @@ document.querySelector<HTMLInputElement>("#import")!.addEventListener("change", 
 
 function render(records: readonly LifeRecord[]): void {
   const summary = summarize(records);
+  const categoryBadges = Object.entries(summary.byCategory)
+    .filter(([_, count]) => count > 0)
+    .map(([cat, count]) => `<span class="badge" style="margin-right: 0.5rem">${escapeHtml(cat)}: ${count}</span>`)
+    .join("");
+
   document.querySelector("#summary")!.innerHTML = [
     ["Open", summary.total - summary.completed], ["Due soon", summary.dueSoon],
     ["Overdue", summary.overdue], [theme.effortLabel, summary.effort],
-  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("") + 
+  `<article style="grid-column: span 4; padding: 0.5rem 1.2rem; border-top: 1px solid #dce7e1; margin-top: 0.5rem; font-size: 0.8rem; color: #668078">${categoryBadges || 'No items categorized'}</article>`;
+
   const plan = buildPlan(records).filter((entry) => selectedCategory === "all" || entry.item.category === selectedCategory);
   document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record">
-    <div><span class="badge">${escapeHtml(entry.item.category)}</span><h3 contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="title">${escapeHtml(entry.item.title)}</h3><p contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="notes" class="editable-notes">${escapeHtml(entry.item.notes || "Add notes...")}</p><p class="reasons">${escapeHtml(entry.reasons.join("; "))}</p></div>
-    <div class="record-actions"><strong>${entry.score}</strong><select data-status="${escapeHtml(entry.item.id)}">
+    <div style="display: flex; gap: 1rem; align-items: flex-start">
+      <input type="checkbox" data-done="${escapeHtml(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
+      <div>
+        <span class="badge">${escapeHtml(entry.item.category)}</span>
+        <h3 contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="title" style="${entry.item.status === 'done' ? 'text-decoration: line-through; opacity: 0.6' : ''}">${escapeHtml(entry.item.title)}</h3>
+        <p contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="notes" class="editable-notes" style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${escapeHtml(entry.item.notes || "Add notes...")}</p>
+        <p class="reasons">${escapeHtml(entry.reasons.join("; "))}</p>
+      </div>
+    </div>
+    <div class="record-actions"><strong style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${entry.score}</strong><select data-status="${escapeHtml(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
     <button class="danger ghost" data-remove="${escapeHtml(entry.item.id)}">Remove</button></div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
+
+  for (const checkbox of document.querySelectorAll<HTMLInputElement>("[data-done]")) {
+    checkbox.onchange = () => {
+      const id = checkbox.dataset.done!;
+      const item = records.find((x) => x.id === id);
+      if (!item) return;
+      store.upsert({ ...item, status: checkbox.checked ? "done" : "planned", updatedAt: new Date().toISOString() });
+    };
+  }
+
   for (const select of document.querySelectorAll<HTMLSelectElement>("[data-status]")) select.onchange = () => {
-    const item = records.find((x) => x.id === select.dataset.status); if (!item) return;
+    const item = records.find((x) => x.id === select.dataset.status);
+    if (!item) return;
     store.upsert({ ...item, status: select.value as ItemStatus, updatedAt: new Date().toISOString() });
   };
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-remove]")) button.onclick = () => store.remove(button.dataset.remove!);

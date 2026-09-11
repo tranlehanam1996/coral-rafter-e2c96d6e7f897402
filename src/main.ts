@@ -128,7 +128,11 @@ function render(records: readonly LifeRecord[]): void {
     if (!item) return;
     store.upsert({ ...item, status: select.value as ItemStatus, updatedAt: new Date().toISOString() });
   };
-  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-remove]")) button.onclick = () => store.remove(button.dataset.remove!);
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-remove]")) button.onclick = () => {
+    const id = button.dataset.remove!;
+    const item = records.find(x => x.id === id);
+    if (item && confirm(`Remove "${item.title}"?`)) store.remove(id);
+  };
   
   for (const editable of document.querySelectorAll<HTMLElement>("[contenteditable='true']")) {
     editable.onblur = () => {

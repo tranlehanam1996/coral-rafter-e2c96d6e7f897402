@@ -104,7 +104,13 @@ function render(records: readonly LifeRecord[]): void {
         <p class="reasons">${escapeHtml(entry.reasons.join("; "))}</p>
       </div>
     </div>
-    <div class="record-actions"><strong style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${entry.score}</strong><select data-status="${escapeHtml(entry.item.id)}">
+    <div class="record-actions"><div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem">
+      <strong style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${entry.score}</strong>
+      <div style="display: flex; gap: 0.25rem; font-size: 0.7rem; opacity: 0.8">
+        <input type="number" data-id="${escapeHtml(entry.item.id)}" data-field="effort" value="${entry.item.effort}" style="width: 45px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
+        <input type="number" data-id="${escapeHtml(entry.item.id)}" data-field="impact" value="${entry.item.impact}" style="width: 40px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
+      </div>
+    </div><select data-status="${escapeHtml(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
     <button class="danger ghost" data-remove="${escapeHtml(entry.item.id)}">Remove</button></div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
 
@@ -127,6 +133,17 @@ function render(records: readonly LifeRecord[]): void {
   for (const editable of document.querySelectorAll<HTMLElement>("[contenteditable='true']")) {
     editable.onblur = () => {
       const id = editable.dataset.id!; const field = editable.dataset.field!; const value = editable.textContent?.trim() ?? "";
+      const item = records.find(x => x.id === id); if (!item) return;
+      if (item[field as keyof LifeRecord] !== value) {
+        store.upsert({ ...item, [field]: value, updatedAt: new Date().toISOString() });
+      }
+    };
+  }
+
+  for (const input of document.querySelectorAll<HTMLInputElement>("[data-field]")) {
+    if (input.contentEditable === "true") continue;
+    input.onblur = () => {
+      const id = input.dataset.id!; const field = input.dataset.field!; const value = Number(input.value);
       const item = records.find(x => x.id === id); if (!item) return;
       if (item[field as keyof LifeRecord] !== value) {
         store.upsert({ ...item, [field]: value, updatedAt: new Date().toISOString() });

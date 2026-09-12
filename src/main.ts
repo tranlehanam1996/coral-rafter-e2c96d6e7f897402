@@ -89,7 +89,7 @@ function render(records: readonly LifeRecord[]): void {
   const summary = summarize(records);
   const categoryBadges = Object.entries(summary.byCategory)
     .filter(([_, count]) => count > 0)
-    .map(([cat, count]) => `<span class="badge" style="margin-right: 0.5rem">${escapeHtml(cat)}: ${count}</span>`)
+    .map(([cat, count]) => `<span class="badge" style="margin-right: 0.5rem">${escapeH(cat)}: ${count}</span>`)
     .join("");
 
   document.querySelector("#summary")!.innerHTML = [
@@ -106,28 +106,29 @@ function render(records: readonly LifeRecord[]): void {
     return matchesCategory && matchesSearch;
   });
 
-  document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record ${entry.item.status === 'active' ? 'is-active' : ''}">
+  document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record ${entry.item.status === 'active' ? 'is-active' : ''} ${entry.daysUntilDue < 0 ? 'is-overdue' : ''}">
     <div style="display: flex; gap: 1rem; align-items: flex-start">
-      <input type="checkbox" data-done="${escapeHtml(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
+      <input type="checkbox" data-done="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
       <div>
         <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.25rem">
-          <span class="badge">${escapeHtml(entry.item.category)}</span>
+          <span class="badge">${escapeH(entry.item.category)}</span>
           ${entry.item.status === 'active' ? '<span class="badge active-badge">Active</span>' : ''}
+          ${entry.item.impact >= 5 ? '<span class="badge priority-badge">Priority</span>' : ''}
         </div>
-        <h3 contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="title" style="${entry.item.status === 'done' ? 'text-decoration: line-through; opacity: 0.6' : ''}">${escapeHtml(entry.item.title)}</h3>
-        <p contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="notes" class="editable-notes" style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${escapeHtml(entry.item.notes || "Add notes...")}</p>
-        <p class="reasons">${escapeHtml(entry.reasons.join("; "))}</p>
+        <h3 contenteditable="true" data-id="${escapeH(entry.item.id)}" data-field="title" style="${entry.item.status === 'done' ? 'text-decoration: line-through; opacity: 0.6' : ''}">${escapeH(entry.item.title)}</h3>
+        <p contenteditable="true" data-id="${escapeH(entry.item.id)}" data-field="notes" class="editable-notes" style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${escapeH(entry.item.notes || "Add notes...")}</p>
+        <p class="reasons">${escapeH(entry.reasons.join("; "))}</p>
       </div>
     </div>
     <div class="record-actions"><div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem">
       <strong style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${entry.score}</strong>
       <div style="display: flex; gap: 0.25rem; font-size: 0.7rem; opacity: 0.8">
-        <input type="number" data-id="${escapeHtml(entry.item.id)}" data-field="effort" value="${entry.item.effort}" style="width: 45px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
-        <input type="number" data-id="${escapeHtml(entry.item.id)}" data-field="impact" value="${entry.item.impact}" style="width: 40px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
+        <input type="number" data-id="${escapeH(entry.item.id)}" data-field="effort" value="${entry.item.effort}" style="width: 45px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
+        <input type="number" data-id="${escapeH(entry.item.id)}" data-field="impact" value="${entry.item.impact}" style="width: 40px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
       </div>
-    </div><select data-status="${escapeHtml(entry.item.id)}">
+    </div><select data-status="${escapeH(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
-    <button class="danger ghost" data-remove="${escapeHtml(entry.item.id)}">Remove</button></div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
+    <button class="danger ghost" data-remove="${escapeH(entry.item.id)}">Remove</button></div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
 
   for (const checkbox of document.querySelectorAll<HTMLInputElement>("[data-done]")) {
     checkbox.onchange = () => {
@@ -172,8 +173,10 @@ function render(records: readonly LifeRecord[]): void {
 
   document.querySelector("#week")!.innerHTML = suggestDailyLoad(records, Number(capacity.value) || 90).map((day) => `<article class="day ${day.overloaded ? "over" : ""}">
     <span>${new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" })}</span><strong>${day.used} min</strong>
-    <div class="day-tasks">${day.entries.map(e => `<div class="day-task">${escapeHtml(e.item.title)}</div>`).join("")}</div>
+    <div class="day-tasks">${day.entries.map(e => `<div class="day-task">${escapeH(e.item.title)}</div>`).join("")}</div>
     <small>${day.entries.length} item(s)</small></article>`).join("");
 }
+
+function escapeH(v: unknown) { return escapeHtml(v); }
 
 store.subscribe(render);

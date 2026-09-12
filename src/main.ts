@@ -41,7 +41,7 @@ root.innerHTML = `
     <button type="submit">Add to plan</button></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
     <label class="file">Import JSON<input id="import" type="file" accept="application/json"></label></div></section>
   <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><input id="search" type="text" placeholder="Search tasks..." style="width: 160px"><select id="filter"><option value="all">All categories</option>
-    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div></section></main>
+    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="bulk-done" class="ghost">Done All</button><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div></section></main>
   <section class="panel week-panel"><div class="panel-title"><h2>Seven-day load</h2><label>Daily capacity
     <input id="capacity" type="number" min="15" max="480" step="15" value="90"></label></div><div id="week" class="week"></div></section>
 `;
@@ -78,6 +78,25 @@ document.querySelector("#seed-export")!.addEventListener("click", () => download
 document.querySelector("#csv")!.addEventListener("click", () => download("records.csv", exportCsv(store.all()), "text/csv"));
 document.querySelector("#clear-all")!.addEventListener("click", () => {
   if (confirm("Clear all records from the store?")) store.replace([]);
+});
+document.querySelector("#bulk-done")!.addEventListener("click", () => {
+  const records = store.all();
+  const toComplete = buildPlan(records).filter((entry) => {
+    const matchesCategory = selectedCategory === "all" || entry.item.category === selectedCategory;
+    const matchesSearch = !searchQuery || 
+      entry.item.title.toLowerCase().includes(searchQuery) || 
+      entry.item.notes.toLowerCase().includes(searchQuery);
+    return matchesCategory && matchesSearch && entry.item.status !== "done";
+  });
+  if (!toComplete.length) return;
+  if (confirm(`Mark ${toComplete.length} filtered task(s) as done?`)) {
+    const now = new Date().toISOString();
+    const updated = records.map(r => {
+      const shouldComplete = toComplete.some(e => e.item.id === r.id);
+      return shouldComplete ? { ...r, status: "done", updatedAt: now } : r;
+    });
+    store.replace(updated);
+  }
 });
 document.querySelector<HTMLInputElement>("#import")!.addEventListener("change", async (event) => {
   const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;

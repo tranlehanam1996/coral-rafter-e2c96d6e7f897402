@@ -41,7 +41,7 @@ root.innerHTML = `
     <button type="submit">Add to plan</button></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
     <label class="file">Import JSON<input id="import" type="file" accept="application/json"></label></div></section>
   <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><input id="search" type="text" placeholder="Search tasks..." style="width: 160px"><select id="filter"><option value="all">All categories</option>
-    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="bulk-done" class="ghost">Done All</button><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div></section></main>
+    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="bulk-done" class="ghost">Done All</button><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div><div id="completed-plan" class="completed-section"></div></section></main>
   <section class="panel week-panel"><div class="panel-title"><h2>Seven-day load</h2><label>Daily capacity
     <input id="capacity" type="number" min="15" max="480" step="15" value="90"></label></div><div id="week" class="week"></div></section>
 `;
@@ -148,6 +148,35 @@ function render(records: readonly LifeRecord[]): void {
     </div><select data-status="${escapeH(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
     <button class="danger ghost" data-remove="${escapeH(entry.item.id)}">Remove</button></div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
+
+  const completed = records.filter(r => {
+    const matchesCategory = selectedCategory === "all" || r.category === selectedCategory;
+    const matchesSearch = !searchQuery || 
+      r.title.toLowerCase().includes(searchQuery) || 
+      r.notes.toLowerCase().includes(searchQuery);
+    return r.status === "done" && matchesCategory && matchesSearch;
+  }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  document.querySelector("#completed-plan")!.innerHTML = completed.length ? `
+    <details style="margin-top: 2rem; border-top: 1px solid #dce7e1; padding-top: 1rem">
+      <summary style="cursor: pointer; color: #668078; font-weight: 700; font-size: 0.9rem; margin-bottom: 1rem">Completed Tasks (${completed.length})</summary>
+      ${completed.map(item => `<article class="record" style="opacity: 0.7">
+        <div style="display: flex; gap: 1rem; align-items: flex-start">
+          <input type="checkbox" data-done="${escapeH(item.id)}" checked style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
+          <div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.25rem">
+              <span class="badge">${escapeH(item.category)}</span>
+            </div>
+            <h3 style="text-decoration: line-through; opacity: 0.6">${escapeH(item.title)}</h3>
+            <p class="editable-notes" style="opacity: 0.4">${escapeH(item.notes || "")}</p>
+          </div>
+        </div>
+        <div class="record-actions">
+          <button class="danger ghost" data-remove="${escapeH(item.id)}" style="font-size: 0.7rem; padding: 0.4rem 0.6rem">Remove</button>
+        </div>
+      </article>`).join("")}
+    </details>
+  ` : "";
 
   for (const checkbox of document.querySelectorAll<HTMLInputElement>("[data-done]")) {
     checkbox.onchange = () => {

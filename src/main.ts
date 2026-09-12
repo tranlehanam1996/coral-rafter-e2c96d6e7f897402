@@ -106,11 +106,14 @@ function render(records: readonly LifeRecord[]): void {
     return matchesCategory && matchesSearch;
   });
 
-  document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record">
+  document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record ${entry.item.status === 'active' ? 'is-active' : ''}">
     <div style="display: flex; gap: 1rem; align-items: flex-start">
       <input type="checkbox" data-done="${escapeHtml(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
       <div>
-        <span class="badge">${escapeHtml(entry.item.category)}</span>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.25rem">
+          <span class="badge">${escapeHtml(entry.item.category)}</span>
+          ${entry.item.status === 'active' ? '<span class="badge active-badge">Active</span>' : ''}
+        </div>
         <h3 contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="title" style="${entry.item.status === 'done' ? 'text-decoration: line-through; opacity: 0.6' : ''}">${escapeHtml(entry.item.title)}</h3>
         <p contenteditable="true" data-id="${escapeHtml(entry.item.id)}" data-field="notes" class="editable-notes" style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${escapeHtml(entry.item.notes || "Add notes...")}</p>
         <p class="reasons">${escapeHtml(entry.reasons.join("; "))}</p>

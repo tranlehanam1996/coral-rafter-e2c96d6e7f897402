@@ -17,6 +17,7 @@ const initial: LifeRecord[] = theme.seeds.map(([title, category, effort, impact]
 }));
 const store = new RecordStore(`life-board:${theme.id}:v1`, initial);
 let selectedCategory = "all";
+let searchQuery = "";
 
 const HTML_ENTITIES: Readonly<Record<string, string>> = {
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -39,7 +40,7 @@ root.innerHTML = `
     <label>Notes<textarea name="notes" rows="3" maxlength="600"></textarea></label><p id="errors" class="errors"></p>
     <button type="submit">Add to plan</button></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
     <label class="file">Import JSON<input id="import" type="file" accept="application/json"></label></div></section>
-  <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><select id="filter"><option value="all">All categories</option>
+  <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><input id="search" type="text" placeholder="Search tasks..." style="width: 160px"><select id="filter"><option value="all">All categories</option>
     ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div></section></main>
   <section class="panel week-panel"><div class="panel-title"><h2>Seven-day load</h2><label>Daily capacity
     <input id="capacity" type="number" min="15" max="480" step="15" value="90"></label></div><div id="week" class="week"></div></section>
@@ -68,6 +69,10 @@ form.addEventListener("submit", (event) => {
 document.querySelector<HTMLSelectElement>("#filter")!.addEventListener("change", (event) => {
   selectedCategory = (event.target as HTMLSelectElement).value; render(store.all());
 });
+document.querySelector<HTMLInputElement>("#search")!.addEventListener("input", (event) => {
+  searchQuery = (event.target as HTMLInputElement).value.toLowerCase();
+  render(store.all());
+});
 capacity.addEventListener("input", () => render(store.all()));
 document.querySelector("#seed-export")!.addEventListener("click", () => download("records.json", exportJson(store.all()), "application/json"));
 document.querySelector("#csv")!.addEventListener("click", () => download("records.csv", exportCsv(store.all()), "text/csv"));
@@ -93,7 +98,14 @@ function render(records: readonly LifeRecord[]): void {
   ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("") + 
   `<article style="grid-column: span 4; padding: 0.5rem 1.2rem; border-top: 1px solid #dce7e1; margin-top: 0.5rem; font-size: 0.8rem; color: #668078">${categoryBadges || 'No items categorized'}</article>`;
 
-  const plan = buildPlan(records).filter((entry) => selectedCategory === "all" || entry.item.category === selectedCategory);
+  const plan = buildPlan(records).filter((entry) => {
+    const matchesCategory = selectedCategory === "all" || entry.item.category === selectedCategory;
+    const matchesSearch = !searchQuery || 
+      entry.item.title.toLowerCase().includes(searchQuery) || 
+      entry.item.notes.toLowerCase().includes(searchQuery);
+    return matchesCategory && matchesSearch;
+  });
+
   document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record">
     <div style="display: flex; gap: 1rem; align-items: flex-start">
       <input type="checkbox" data-done="${escapeHtml(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">

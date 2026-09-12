@@ -10,12 +10,12 @@ const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Application root is missing.");
 
 const offsetDay = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-const initial: LifeRecord[] = theme.seeds.map(([title, category, effort, impact], index) => ({
+const getSeeds = (): LifeRecord[] => theme.seeds.map(([title, category, effort, impact], index) => ({
   id: crypto.randomUUID(), title, category, effort, impact,
   dueDate: offsetDay(index + 1), status: index === 0 ? "active" : "planned", notes: "",
   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
 }));
-const store = new RecordStore(`life-board:${theme.id}:v1`, initial);
+const store = new RecordStore(`life-board:${theme.id}:v1`, getSeeds());
 let selectedCategory = "all";
 let searchQuery = "";
 
@@ -41,7 +41,8 @@ root.innerHTML = `
     <button type="submit">Add to plan</button></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
     <label class="file">Import JSON<input id="import" type="file" accept="application/json"></label></div></section>
   <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><input id="search" type="text" placeholder="Search tasks..." style="width: 160px"><select id="filter"><option value="all">All categories</option>
-    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="bulk-done" class="ghost">Done All</button><button id="clear-all" class="danger ghost">Clear All</button></div></div><div id="plan"></div><div id="completed-plan" class="completed-section"></div></section></main>
+    ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="bulk-done" class="ghost">Done All</button><div style="display: flex; gap: 0.5rem">
+    <button id="reset-seeds" class="ghost">Restore Seeds</button><button id="clear-all" class="danger ghost">Clear All</button></div></div></div><div id="plan"></div><div id="completed-plan" class="completed-section"></div></section></main>
   <section class="panel week-panel"><div class="panel-title"><h2>Seven-day load</h2><label>Daily capacity
     <input id="capacity" type="number" min="15" max="480" step="15" value="90"></label></div><div id="week" class="week"></div></section>
 `;
@@ -78,6 +79,9 @@ document.querySelector("#seed-export")!.addEventListener("click", () => download
 document.querySelector("#csv")!.addEventListener("click", () => download("records.csv", exportCsv(store.all()), "text/csv"));
 document.querySelector("#clear-all")!.addEventListener("click", () => {
   if (confirm("Clear all records from the store?")) store.replace([]);
+});
+document.querySelector("#reset-seeds")!.addEventListener("click", () => {
+  if (confirm("Restore default seed tasks? This will replace your current list.")) store.replace(getSeeds());
 });
 document.querySelector("#bulk-done")!.addEventListener("click", () => {
   const records = store.all();
@@ -125,7 +129,7 @@ function render(records: readonly LifeRecord[]): void {
     return matchesCategory && matchesSearch;
   });
 
-  document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record ${entry.item.status === 'active' ? 'is-active' : ''} ${entry.daysUntilDue < 0 ? 'is-overdue' : ''}">
+  document.querySelector("#plan")!.innerHTML = plan.length ? plan.map((entry) => `<article class="record ${entry.item.status === 'active' ? 'is-active' : ''} ${entry.daysUntilDue < 0 ? 'is-overdue' : ''} ${entry.item.impact >= 5 ? 'is-high-impact' : ''}">
     <div style="display: flex; gap: 1rem; align-items: flex-start">
       <input type="checkbox" data-done="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
       <div>

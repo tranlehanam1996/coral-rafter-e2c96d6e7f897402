@@ -148,7 +148,10 @@ function render(records: readonly LifeRecord[]): void {
       <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem; margin-top: 0.2rem" data-set-priority="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>★ High</button>
     </div><select data-status="${escapeH(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
-    <button class="danger ghost" data-remove="${escapeH(entry.item.id)}">Remove</button></div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
+    <div style="display: flex; flex-direction: column; gap: 0.25rem">
+      <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-dup="${escapeH(entry.item.id)}">Dup</button>
+      <button class="danger ghost" data-remove="${escapeH(entry.item.id)}">Remove</button>
+    </div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
 
   const completed = records.filter(r => {
     const matchesCategory = selectedCategory === "all" || r.category === selectedCategory;
@@ -204,6 +207,23 @@ function render(records: readonly LifeRecord[]): void {
       const id = priorityBtn.dataset.setPriority!;
       const item = records.find(x => x.id === id);
       if (item) store.upsert({ ...item, impact: 5, updatedAt: new Date().toISOString() });
+    };
+  }
+
+  for (const dupBtn of document.querySelectorAll<HTMLButtonElement>("[data-dup]")) {
+    dupBtn.onclick = () => {
+      const id = dupBtn.dataset.dup!;
+      const item = records.find(x => x.id === id);
+      if (!item) return;
+      const now = new Date().toISOString();
+      store.upsert({
+        ...item,
+        id: crypto.randomUUID(),
+        title: `${item.title} (Copy)`,
+        status: "planned",
+        createdAt: now,
+        updatedAt: now
+      });
     };
   }
 

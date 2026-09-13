@@ -149,7 +149,10 @@ function render(records: readonly LifeRecord[]): void {
         <input type="number" data-id="${escapeH(entry.item.id)}" data-field="effort" value="${entry.item.effort}" style="width: 45px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
         <input type="number" data-id="${escapeH(entry.item.id)}" data-field="impact" value="${entry.item.impact}" style="width: 40px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
       </div>
-      <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem; margin-top: 0.2rem" data-set-priority="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>★ High</button>
+      <div style="display: flex; gap: 0.25rem">
+        <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem; margin-top: 0.2rem" data-set-priority="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>★ High</button>
+        <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem; margin-top: 0.2rem" data-move-top="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>↑ Top</button>
+      </div>
     </div><select data-status="${escapeH(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
     <div style="display: flex; flex-direction: column; gap: 0.25rem">
@@ -167,7 +170,10 @@ function render(records: readonly LifeRecord[]): void {
 
   document.querySelector("#completed-plan")!.innerHTML = completed.length ? `
     <details style="margin-top: 2rem; border-top: 1px solid #dce7e1; padding-top: 1rem">
-      <summary style="cursor: pointer; color: #668078; font-weight: 700; font-size: 0.9rem; margin-bottom: 1rem">Completed Tasks (${completed.length})</summary>
+      <summary style="cursor: pointer; color: #668078; font-weight: 700; font-size: 0.9rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center">
+        <span>Completed Tasks (${completed.length})</span>
+        <button id="clear-completed" class="ghost" style="font-size: 0.7rem; padding: 0.2rem 0.5rem">Clear All</button>
+      </summary>
       ${completed.map(item => `<article class="record" style="opacity: 0.7">
         <div style="display: flex; gap: 1rem; align-items: flex-start">
           <input type="checkbox" data-done="${escapeH(item.id)}" checked style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
@@ -185,6 +191,14 @@ function render(records: readonly LifeRecord[]): void {
       </article>`).join("")}
     </details>
   ` : "";
+
+  if (document.querySelector("#clear-completed")) {
+    document.querySelector("#clear-completed")!.onclick = () => {
+      if (confirm("Permanently remove all completed tasks?")) {
+        store.replace(records.filter(r => r.status !== "done"));
+      }
+    };
+  }
 
   for (const checkbox of document.querySelectorAll<HTMLInputElement>("[data-done]")) {
     checkbox.onchange = () => {
@@ -211,6 +225,17 @@ function render(records: readonly LifeRecord[]): void {
       const id = priorityBtn.dataset.setPriority!;
       const item = records.find(x => x.id === id);
       if (item) store.upsert({ ...item, impact: 5, updatedAt: new Date().toISOString() });
+    };
+  }
+
+  for (const moveBtn of document.querySelectorAll<HTMLButtonElement>("[data-move-top]")) {
+    moveBtn.onclick = () => {
+      const id = moveBtn.dataset.moveTop!;
+      const item = records.find(x => x.id === id);
+      if (item) {
+        // Moving to top is simulated by maximizing impact and minimizing effort for the priority engine
+        store.upsert({ ...item, impact: 5, effort: 1, updatedAt: new Date().toISOString() });
+      }
     };
   }
 

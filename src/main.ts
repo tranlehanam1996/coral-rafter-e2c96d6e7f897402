@@ -156,6 +156,7 @@ function render(records: readonly LifeRecord[]): void {
     </div><select data-status="${escapeH(entry.item.id)}">
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
     <div style="display: flex; flex-direction: column; gap: 0.25rem">
+      <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-toggle-active="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>${entry.item.status === 'active' ? 'Stop' : 'Start'}</button>
       <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-dup="${escapeH(entry.item.id)}">Dup</button>
       <button class="danger ghost" data-remove="${escapeH(entry.item.id)}">Remove</button>
     </div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
@@ -238,6 +239,16 @@ function render(records: readonly LifeRecord[]): void {
       if (item) {
         // Moving to top is simulated by maximizing impact and minimizing effort for the priority engine
         store.upsert({ ...item, impact: 5, effort: 1, updatedAt: new Date().toISOString() });
+      }
+    };
+  }
+
+  for (const activeBtn of document.querySelectorAll<HTMLButtonElement>("[data-toggle-active]")) {
+    activeBtn.onclick = () => {
+      const id = activeBtn.dataset.toggleActive!;
+      const item = records.find(x => x.id === id);
+      if (item) {
+        store.upsert({ ...item, status: item.status === 'active' ? 'planned' : 'active', updatedAt: new Date().toISOString() });
       }
     };
   }

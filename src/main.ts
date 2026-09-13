@@ -117,8 +117,8 @@ function render(records: readonly LifeRecord[]): void {
 
   document.querySelector("#summary")!.innerHTML = [
     ["Open", summary.total - summary.completed], ["Due soon", summary.dueSoon],
-    ["Overdue", summary.overdue], [theme.effortLabel, summary.effort],
-  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("") + 
+    ["Overdue", summary.overdue, summary.overdue > 0 ? "style='color: #a33232'" : ""], [theme.effortLabel, summary.effort],
+  ].map(([label, value, style = ""]) => `<article><span>${label}</span><strong ${style}>${value}</strong></article>`).join("") + 
   `<article style="grid-column: span 4; padding: 0.5rem 1.2rem; border-top: 1px solid #dce7e1; margin-top: 0.5rem; font-size: 0.8rem; color: #668078">${categoryBadges || 'No items categorized'}</article>`;
 
   const plan = buildPlan(records).filter((entry) => {
@@ -186,7 +186,10 @@ function render(records: readonly LifeRecord[]): void {
           </div>
         </div>
         <div class="record-actions">
-          <button class="danger ghost" data-remove="${escapeH(item.id)}" style="font-size: 0.7rem; padding: 0.4rem 0.6rem">Remove</button>
+          <div style="display: flex; gap: 0.25rem">
+            <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-dup="${escapeH(item.id)}">Dup</button>
+            <button class="danger ghost" data-remove="${escapeH(item.id)}" style="font-size: 0.7rem; padding: 0.4rem 0.6rem">Remove</button>
+          </div>
         </div>
       </article>`).join("")}
     </details>

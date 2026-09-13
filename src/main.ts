@@ -242,7 +242,6 @@ function render(records: readonly LifeRecord[]): void {
   }
 
   for (const input of document.querySelectorAll<HTMLInputElement>("[data-field]")) {
-    if (input.contentEditable === "true") continue;
     input.onblur = () => {
       const id = input.dataset.id!; const field = input.dataset.field!; const value = Number(input.value);
       const item = records.find(x => x.id === id); if (!item) return;

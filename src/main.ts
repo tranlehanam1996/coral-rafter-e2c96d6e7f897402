@@ -237,7 +237,6 @@ function render(records: readonly LifeRecord[]): void {
       const id = moveBtn.dataset.moveTop!;
       const item = records.find(x => x.id === id);
       if (item) {
-        // Moving to top is simulated by maximizing impact and minimizing effort for the priority engine
         store.upsert({ ...item, impact: 5, effort: 1, updatedAt: new Date().toISOString() });
       }
     };
@@ -290,9 +289,17 @@ function render(records: readonly LifeRecord[]): void {
     };
   }
 
-  document.querySelector("#week")!.innerHTML = suggestDailyLoad(records, Number(capacity.value) || 90).map((day) => `<article class="day ${day.overloaded ? "over" : ""}">
+  const filteredRecords = records.filter(r => {
+    const matchesCategory = selectedCategory === "all" || r.category === selectedCategory;
+    const matchesSearch = !searchQuery || 
+      r.title.toLowerCase().includes(searchQuery) || 
+      r.notes.toLowerCase().includes(searchQuery);
+    return r.status !== "done" && matchesCategory && matchesSearch;
+  });
+
+  document.querySelector("#week")!.innerHTML = suggestDailyLoad(filteredRecords, Number(capacity.value) || 90).map((day) => `<article class="day ${day.overloaded ? "over" : ""}">
     <span>${new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" })}</span><strong>${day.used} min</strong>
-    <div class="day-tasks">${day.entries.map(e => `<div class="day-task">${escapeH(e.item.title)}</div>`).join("")}</div>
+    <div class="day-tasks">${day.entries.map(e => `<div class="day-task" style="${e.daysUntilDue < 0 ? 'color: #a33232; font-weight: 700' : ''}">${escapeH(e.item.title)}</div>`).join("")}</div>
     <small>${day.entries.length} item(s)</small></article>`).join("");
 }
 

@@ -148,6 +148,7 @@ function render(records: readonly LifeRecord[]): void {
     <div class="record-actions"><div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem">
       <strong style="${entry.item.status === 'done' ? 'opacity: 0.4' : ''}">${entry.score}</strong>
       <div style="display: flex; gap: 0.25rem; font-size: 0.7rem; opacity: 0.8">
+        <input type="date" data-id="${escapeH(entry.item.id)}" data-field="dueDate" value="${entry.item.dueDate}" style="width: 130px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
         <input type="number" data-id="${escapeH(entry.item.id)}" data-field="effort" value="${entry.item.effort}" style="width: 45px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
         <input type="number" data-id="${escapeH(entry.item.id)}" data-field="impact" value="${entry.item.impact}" style="width: 40px; padding: 0.1rem 0.2rem; font-size: 0.7rem" ${entry.item.status === 'done' ? 'disabled' : ''}>
       </div>
@@ -290,7 +291,8 @@ function render(records: readonly LifeRecord[]): void {
 
   for (const input of document.querySelectorAll<HTMLInputElement>("[data-field]")) {
     input.onblur = () => {
-      const id = input.dataset.id!; const field = input.dataset.field!; const value = Number(input.value);
+      const id = input.dataset.id!; const field = input.dataset.field!; 
+      const value = field === "dueDate" ? input.value : Number(input.value);
       const item = records.find(x => x.id === id); if (!item) return;
       if (item[field as keyof LifeRecord] !== value) {
         store.upsert({ ...item, [field]: value, updatedAt: new Date().toISOString() });

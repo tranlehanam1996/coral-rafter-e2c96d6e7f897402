@@ -30,9 +30,8 @@ root.innerHTML = `
     <p>${theme.tagline}</p></div><div class="revision" title="Repository revision ledger">
     <span>revision</span><strong>${revisionLedger.ordinal}</strong><small>${revisionLedger.day}</small></div></header>
   <section id="summary" class="summary"></section>
-  <main class="layout"><section class="panel"><div class="panel-title"><h2>Add ${theme.itemLabel.toLowerCase()}</h2>
-    <button id="seed-export" class="ghost">Export JSON</button></div><form id="record-form" novalidate>
-    <label>Title<input name="title" maxlength="100" required></label>
+  <main class="layout"><section class="panel"><div class="panel-title"><h2>Add ${theme.itemLabel.toLowerCase()}</h2><button id="seed-export" class="ghost">Export JSON</button></div><form id="record-form" novalidate>
+    <label>Title<input name="title" maxlength="100" required placeholder="Quick add... (Enter to save)"></label>
     <div class="form-grid"><label>Category<select name="category">${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select></label>
     <label>${theme.dateLabel}<input name="dueDate" type="date" value="${localDay()}" required></label>
     <label>${theme.effortLabel}<input name="effort" type="number" min="1" max="480" value="30" required></label>
@@ -51,8 +50,7 @@ const form = document.querySelector<HTMLFormElement>("#record-form")!;
 const errors = document.querySelector<HTMLParagraphElement>("#errors")!;
 const capacity = document.querySelector<HTMLInputElement>("#capacity")!;
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
+const handleFormSubmit = () => {
   const data = new FormData(form);
   const now = new Date().toISOString();
   const item: LifeRecord = {
@@ -65,7 +63,25 @@ form.addEventListener("submit", (event) => {
   if (complaints.length) { errors.textContent = complaints.join(" "); return; }
   errors.textContent = ""; store.upsert(item); form.reset();
   (form.elements.namedItem("dueDate") as HTMLInputElement).value = localDay();
+};
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  handleFormSubmit();
 });
+
+// Quick add: Submit form if user presses Enter in the title field
+const titleInput = form.querySelector<HTMLInputElement>('[name="title"]');
+if (titleInput) {
+  titleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFormSubmit();
+      form.reset();
+      (form.elements.namedItem("dueDate") as HTMLInputElement).value = localDay();
+    }
+  });
+}
 
 document.querySelector<HTMLSelectElement>("#filter")!.addEventListener("change", (event) => {
   selectedCategory = (event.target as HTMLSelectElement).value; render(store.all());
@@ -160,6 +176,7 @@ function render(records: readonly LifeRecord[]): void {
     ${(["planned", "active", "done"] as ItemStatus[]).map((status) => `<option ${status === entry.item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
     <div style="display: flex; flex-direction: column; gap: 0.25rem">
       <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-toggle-active="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>${entry.item.status === 'active' ? 'Stop' : 'Start'}</button>
+      <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-move-today="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'disabled' : ''}>Today</button>
       <button class="ghost" style="font-size: 0.6rem; padding: 0.1rem 0.4rem" data-dup="${escapeH(entry.item.id)}">Dup</button>
       <button class="danger ghost" data-remove="${escapeH(entry.item.id)}">Remove</button>
     </div></article>`).join("") : "<p class='empty'>No open records match this view.</p>";
@@ -248,6 +265,16 @@ function render(records: readonly LifeRecord[]): void {
       const item = records.find(x => x.id === id);
       if (item) {
         store.upsert({ ...item, impact: 5, effort: 1, updatedAt: new Date().toISOString() });
+      }
+    };
+  }
+
+  for (const moveTodayBtn of document.querySelectorAll<HTMLButtonElement>("[data-move-today]")) {
+    moveTodayBtn.onclick = () => {
+      const id = moveTodayBtn.dataset.moveToday!;
+      const item = records.find(x => x.id === id);
+      if (item) {
+        store.upsert({ ...item, dueDate: localDay(), updatedAt: new Date().toISOString() });
       }
     };
   }

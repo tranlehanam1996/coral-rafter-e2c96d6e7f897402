@@ -134,7 +134,9 @@ function render(records: readonly LifeRecord[]): void {
       <input type="checkbox" data-done="${escapeH(entry.item.id)}" ${entry.item.status === 'done' ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; margin-top: 0.4rem">
       <div>
         <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.25rem">
-          <span class="badge">${escapeH(entry.item.category)}</span>
+          <select data-category="${escapeH(entry.item.id)}" style="width: auto; padding: 0.1rem 0.4rem; font-size: 0.7rem; border-radius: 99px; border: 1px solid #cbdad3; background: #e4f0eb; color: #176b55; font-weight: 800;">
+            ${theme.categories.map(cat => `<option ${cat === entry.item.category ? 'selected' : ''}>${cat}</option>`).join("")}
+          </select>
           ${entry.item.status === 'active' ? '<span class="badge active-badge">Active</span>' : ''}
           ${entry.item.impact >= 5 ? '<span class="badge priority-badge">Priority</span>' : ''}
         </div>
@@ -218,6 +220,13 @@ function render(records: readonly LifeRecord[]): void {
     if (!item) return;
     store.upsert({ ...item, status: select.value as ItemStatus, updatedAt: new Date().toISOString() });
   };
+
+  for (const catSelect of document.querySelectorAll<HTMLSelectElement>("[data-category]")) catSelect.onchange = () => {
+    const item = records.find((x) => x.id === catSelect.dataset.category);
+    if (!item) return;
+    store.upsert({ ...item, category: catSelect.value, updatedAt: new Date().toISOString() });
+  };
+
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-remove]")) button.onclick = () => {
     const id = button.dataset.remove!;
     const item = records.find(x => x.id === id);

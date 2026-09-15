@@ -193,7 +193,7 @@ function render(records: readonly LifeRecord[]): void {
     <details style="margin-top: 2rem; border-top: 1px solid #dce7e1; padding-top: 1rem">
       <summary style="cursor: pointer; color: #668078; font-weight: 700; font-size: 0.9rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center">
         <span>Completed Tasks (${completed.length})</span>
-        <button id="clear-completed" class="ghost" style="font-size: 0.7rem; padding: 0.2rem 0.5rem">Clear All</button>
+        <button id="clear-completed" class="ghost" style="font-size: 0.7rem; padding: 0.2rem 0.5rem">Archive All</button>
       </summary>
       ${completed.map(item => `<article class="record" style="opacity: 0.7">
         <div style="display: flex; gap: 1rem; align-items: flex-start">

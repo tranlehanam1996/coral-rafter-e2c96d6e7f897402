@@ -35,9 +35,12 @@ root.innerHTML = `
     <div class="form-grid"><label>Category<select name="category">${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select></label>
     <label>${theme.dateLabel}<input name="dueDate" type="date" value="${localDay()}" required></label>
     <label>${theme.effortLabel}<input name="effort" type="number" min="1" max="480" value="30" required></label>
-    <label>${theme.impactLabel}<input name="impact" type="number" min="1" max="5" value="3" required></label></div>
+    <label>${theme.impactLabel}<input name="impact" type="number" min="1" max="5" value="3" required id="impact-input"></label></div>
     <label>Notes<textarea name="notes" rows="3" maxlength="600"></textarea></label><p id="errors" class="errors"></p>
-    <button type="submit">Add to plan</button></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem">
+      <button type="submit" style="flex: 1">Add to plan</button>
+      <button type="button" id="set-priority-high" class="ghost" style="white-space: nowrap">★ High Impact</button>
+    </div></form><div class="exchange"><button id="csv" class="ghost">Export CSV</button>
     <label class="file">Import JSON<input id="import" type="file" accept="application/json"></label></div></section>
   <section class="panel plan-panel"><div class="panel-title"><h2>Priority plan</h2><div class="filter-group"><input id="search" type="text" placeholder="Search tasks..." style="width: 160px"><select id="filter"><option value="all">All categories</option>
     ${theme.categories.map((x) => `<option>${x}</option>`).join("")}</select><button id="bulk-done" class="ghost">Done All</button><div style="display: flex; gap: 0.5rem">
@@ -122,6 +125,16 @@ document.querySelector<HTMLInputElement>("#import")!.addEventListener("change", 
   const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;
   try { store.replace(importJson(await file.text(), theme)); errors.textContent = ""; }
   catch (error) { errors.textContent = error instanceof Error ? error.message : "Import failed."; }
+});
+
+// Quick-set priority button
+document.querySelector("#set-priority-high")!.addEventListener("click", () => {
+  const impactInput = document.querySelector<HTMLInputElement>("#impact-input");
+  if (impactInput) {
+    impactInput.value = "5";
+    impactInput.style.backgroundColor = "#fffdf5";
+    setTimeout(() => { impactInput.style.backgroundColor = ""; }, 400);
+  }
 });
 
 function render(records: readonly LifeRecord[]): void {

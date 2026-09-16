@@ -11,6 +11,7 @@ export interface LifeRecord {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  dependsOn?: string;
 }
 
 export interface ThemeConfig {

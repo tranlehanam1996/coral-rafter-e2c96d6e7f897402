@@ -28,7 +28,7 @@ export function validateRecord(input: Partial<LifeRecord>, theme: ThemeConfig): 
   return errors;
 }
 
-export function priorityFor(item: LifeRecord, today = localDay()): PlanEntry {
+export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
   let score = item.impact * 12;
@@ -48,6 +48,15 @@ export function priorityFor(item: LifeRecord, today = localDay()): PlanEntry {
     score += 8;
     reasons.push("already in progress");
   }
+
+  if (item.dependsOn) {
+    const dependency = allItems.find(i => i.id === item.dependsOn);
+    if (dependency && dependency.status !== "done") {
+      score -= 30;
+      reasons.push(`blocked by "${dependency.title}"`);
+    }
+  }
+
   if (item.status === "done") score = -1;
   if (reasons.length === 0) reasons.push("ranked by impact and effort");
   return { item, score: Math.round(score * 10) / 10, reasons, daysUntilDue };
@@ -55,7 +64,7 @@ export function priorityFor(item: LifeRecord, today = localDay()): PlanEntry {
 
 export function buildPlan(items: readonly LifeRecord[], today = localDay()): PlanEntry[] {
   return items
-    .map((item) => priorityFor(item, today))
+    .map((item) => priorityFor(item, today, items))
     .filter((entry) => entry.item.status !== "done")
     .sort((a, b) => b.score - a.score || a.item.dueDate.localeCompare(b.item.dueDate));
 }

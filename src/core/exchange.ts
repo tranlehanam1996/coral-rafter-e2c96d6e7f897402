@@ -53,6 +53,9 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   if (!isTimestamp(raw.createdAt) || !isTimestamp(raw.updatedAt)) {
     throw new Error(`Record ${index + 1} has invalid timestamps.`);
   }
+  
+  const dependsOn = typeof raw.dependsOn === "string" ? raw.dependsOn : undefined;
+
   return {
     id: raw.id,
     title: raw.title.trim(),
@@ -64,6 +67,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     notes: raw.notes,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
+    dependsOn,
   };
 }
 
@@ -82,7 +86,7 @@ export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {
 function csvCell(value: unknown): string { return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`; }
 
 export function exportCsv(records: readonly LifeRecord[]): string {
-  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes"];
+  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes", "dependsOn"];
   return [fields.join(","), ...records.map((item) => fields.map((field) => csvCell(item[field])).join(","))].join("\n");
 }
 

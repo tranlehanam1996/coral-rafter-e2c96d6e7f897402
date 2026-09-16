@@ -100,3 +100,9 @@ export function filterRecords(items: readonly LifeRecord[], query: string, categ
     return matchesQuery && matchesCategory;
   });
 }
+
+export function categoryEffort(items: readonly LifeRecord[], category: string): number {
+  return items
+    .filter((item) => item.category === category && item.status !== "done")
+    .reduce((sum, item) => sum + item.effort, 0);
+}

@@ -89,3 +89,14 @@ export function suggestDailyLoad(items: readonly LifeRecord[], minutesPerDay: nu
   }
   return days.map((day) => ({ ...day, overloaded: day.used > capacity }));
 }
+
+export function filterRecords(items: readonly LifeRecord[], query: string, category?: string): LifeRecord[] {
+  const q = query.toLowerCase().trim();
+  return items.filter((item) => {
+    const matchesQuery = !q || 
+      item.title.toLowerCase().includes(q) || 
+      item.notes.toLowerCase().includes(q);
+    const matchesCategory = !category || item.category === category;
+    return matchesQuery && matchesCategory;
+  });
+}

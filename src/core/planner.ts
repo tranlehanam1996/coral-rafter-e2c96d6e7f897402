@@ -28,6 +28,14 @@ export function validateRecord(input: Partial<LifeRecord>, theme: ThemeConfig): 
   return errors;
 }
 
+function getDependencyDepth(item: LifeRecord, allItems: readonly LifeRecord[], visited = new Set<string>()): number {
+  if (!item.dependsOn || visited.has(item.id)) return 0;
+  visited.add(item.id);
+  const parent = allItems.find(i => i.id === item.dependsOn);
+  if (!parent || parent.status === "done") return 0;
+  return 1 + getDependencyDepth(parent, allItems, visited);
+}
+
 export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
@@ -58,10 +66,15 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   }
 
   if (item.dependsOn) {
-    const dependency = allItems.find(i => i.id === item.dependsOn);
-    if (dependency && dependency.status !== "done") {
-      score -= 30;
-      reasons.push(`blocked by "${dependency.title}"`);
+    const depth = getDependencyDepth(item, allItems);
+    if (depth > 0) {
+      const penalty = depth * 15;
+      score -= penalty;
+      const dependency = allItems.find(i => i.id === item.dependsOn);
+      reasons.push(depth > 1 
+        ? `blocked by chain of ${depth} tasks` 
+        : `blocked by "${dependency?.title || "unknown"}"`
+      );
     }
   }
 

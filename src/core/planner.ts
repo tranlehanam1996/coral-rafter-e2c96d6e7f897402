@@ -32,6 +32,12 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
   let score = item.impact * 12;
+
+  if (item.isCritical) {
+    score += 100;
+    reasons.push("critical priority");
+  }
+
   if (daysUntilDue < 0) {
     score += 55 + Math.min(Math.abs(daysUntilDue), 14) * 3;
     reasons.push(`${Math.abs(daysUntilDue)} day(s) overdue`);
@@ -42,8 +48,10 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     score += 36 - daysUntilDue * 4;
     reasons.push(`due in ${daysUntilDue} day(s)`);
   }
+
   const effortPenalty = Math.min(item.effort / 20, 12);
-  score -= effortPenalty;
+  score -= item.isCritical ? 0 : effortPenalty;
+
   if (item.status === "active") {
     score += 8;
     reasons.push("already in progress");

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { importJson } from "../src/core/exchange";
 import { buildPlan, daysBetween, priorityFor, suggestDailyLoad, summarize } from "../src/core/planner";
 import { theme } from "../src/theme";
-import type { LifeRecord } from "../src/types";
+import type { LifeRecord } from "../types";
 
 const item = (overrides: Partial<LifeRecord> = {}): LifeRecord => ({
   id: "one", title: "Example", category: "General", dueDate: "2026-08-20", effort: 30,
@@ -16,6 +16,11 @@ describe("planning engine", () => {
     const overdue = item({ id: "late", dueDate: "2026-08-18", impact: 5 });
     const distant = item({ id: "later", dueDate: "2026-09-20", impact: 2 });
     expect(buildPlan([distant, overdue], "2026-08-20")[0]!.item.id).toBe("late");
+  });
+  it("ranks critical items highest regardless of date", () => {
+    const critical = item({ id: "crit", dueDate: "2026-09-20", isCritical: true });
+    const urgent = item({ id: "urgent", dueDate: "2026-08-18", impact: 5 });
+    expect(buildPlan([critical, urgent], "2026-08-20")[0]!.item.id).toBe("crit");
   });
   it("removes completed work from the active plan", () => expect(buildPlan([item({ status: "done" })], "2026-08-19")).toHaveLength(0));
   it("explains the score", () => expect(priorityFor(item(), "2026-08-19").reasons.join(" ")).toContain("due in 1 day"));

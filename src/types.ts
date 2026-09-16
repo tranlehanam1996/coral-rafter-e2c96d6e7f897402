@@ -12,6 +12,7 @@ export interface LifeRecord {
   createdAt: string;
   updatedAt: string;
   dependsOn?: string;
+  isCritical?: boolean;
 }
 
 export interface ThemeConfig {

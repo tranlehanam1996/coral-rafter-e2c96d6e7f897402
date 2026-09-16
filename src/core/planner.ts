@@ -29,7 +29,9 @@ export function validateRecord(input: Partial<LifeRecord>, theme: ThemeConfig): 
 }
 
 function getDependencyDepth(item: LifeRecord, allItems: readonly LifeRecord[], visited = new Set<string>()): number {
-  if (!item.dependsOn || visited.has(item.id)) return 0;
+  if (!item.dependsOn) return 0;
+  if (visited.has(item.id)) return 99; // Cycle detected: return high penalty depth
+  
   visited.add(item.id);
   const parent = allItems.find(i => i.id === item.dependsOn);
   if (!parent || parent.status === "done") return 0;
@@ -68,13 +70,17 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   if (item.dependsOn) {
     const depth = getDependencyDepth(item, allItems);
     if (depth > 0) {
-      const penalty = depth * 15;
+      const penalty = Math.min(depth * 15, 150);
       score -= penalty;
       const dependency = allItems.find(i => i.id === item.dependsOn);
-      reasons.push(depth > 1 
-        ? `blocked by chain of ${depth} tasks` 
-        : `blocked by "${dependency?.title || "unknown"}"`
-      );
+      if (depth >= 99) {
+        reasons.push("blocked by circular dependency");
+      } else {
+        reasons.push(depth > 1 
+          ? `blocked by chain of ${depth} tasks` 
+          : `blocked by "${dependency?.title || "unknown"}"`
+        );
+      }
     }
   }
 

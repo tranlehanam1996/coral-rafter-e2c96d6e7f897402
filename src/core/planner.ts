@@ -133,8 +133,11 @@ export function summarize(items: readonly LifeRecord[], today = localDay()): Pla
     summary.overdue += item.status !== "done" && days < 0 ? 1 : 0;
     summary.dueSoon += item.status !== "done" && days >= 0 && days <= 7 ? 1 : 0;
     summary.byCategory[item.category] = (summary.byCategory[item.category] ?? 0) + 1;
+    if (item.project) {
+      summary.byProject[item.project] = (summary.byProject[item.project] ?? 0) + 1;
+    }
     return summary;
-  }, { total: 0, completed: 0, overdue: 0, dueSoon: 0, effort: 0, byCategory: {} });
+  }, { total: 0, completed: 0, overdue: 0, dueSoon: 0, effort: 0, byCategory: {}, byProject: {} });
 }
 
 export function suggestDailyLoad(items: readonly LifeRecord[], minutesPerDay: number, today = localDay()) {

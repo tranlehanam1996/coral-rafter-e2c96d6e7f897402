@@ -13,6 +13,7 @@ export interface LifeRecord {
   updatedAt: string;
   dependsOn?: string;
   isCritical?: boolean;
+  project?: string;
 }
 
 export interface ThemeConfig {
@@ -41,4 +42,5 @@ export interface PlanSummary {
   dueSoon: number;
   effort: number;
   byCategory: Record<string, number>;
+  byProject: Record<string, number>;
 }

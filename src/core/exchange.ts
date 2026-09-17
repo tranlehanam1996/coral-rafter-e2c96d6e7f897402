@@ -55,6 +55,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   }
   
   const dependsOn = typeof raw.dependsOn === "string" ? raw.dependsOn : undefined;
+  const project = typeof raw.project === "string" ? raw.project.trim() : undefined;
 
   return {
     id: raw.id,
@@ -68,6 +69,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
     dependsOn,
+    project: project || undefined,
   };
 }
 
@@ -86,7 +88,7 @@ export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {
 function csvCell(value: unknown): string { return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`; }
 
 export function exportCsv(records: readonly LifeRecord[]): string {
-  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes", "dependsOn"];
+  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes", "dependsOn", "project"];
   return [fields.join(","), ...records.map((item) => fields.map((field) => csvCell(item[field])).join(","))].join("\n");
 }
 

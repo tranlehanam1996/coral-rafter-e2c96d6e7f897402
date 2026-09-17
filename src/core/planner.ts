@@ -38,6 +38,27 @@ function getDependencyDepth(item: LifeRecord, allItems: readonly LifeRecord[], v
   return 1 + getDependencyDepth(parent, allItems, visited);
 }
 
+export function hasCircularDependency(item: LifeRecord, allItems: readonly LifeRecord[]): boolean {
+  const visited = new Set<string>();
+  const stack = new Set<string>();
+
+  function check(id: string): boolean {
+    if (stack.has(id)) return true;
+    if (visited.has(id)) return false;
+
+    visited.add(id);
+    stack.add(id);
+
+    const current = allItems.find(i => i.id === id);
+    if (current?.dependsOn && check(current.dependsOn)) return true;
+
+    stack.delete(id);
+    return false;
+  }
+
+  return check(item.id);
+}
+
 export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];

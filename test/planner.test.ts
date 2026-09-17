@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { importJson } from "../src/core/exchange";
-import { buildPlan, daysBetween, priorityFor, suggestDailyLoad, summarize } from "../src/core/planner";
+import { buildPlan, daysBetween, priorityFor, suggestDailyLoad, summarize, hasCircularDependency } from "../src/core/planner";
 import { theme } from "../src/theme";
 import type { LifeRecord } from "../types";
 
@@ -31,6 +31,24 @@ describe("planning engine", () => {
   it("flags a day whose assigned effort exceeds capacity", () => {
     const week = suggestDailyLoad([item({ effort: 120 })], 60, "2026-08-19");
     expect(week.some((day) => day.overloaded)).toBe(true);
+  });
+  it("detects circular dependencies", () => {
+    const a = item({ id: "a", dependsOn: "b" });
+    const b = item({ id: "b", dependsOn: "a" });
+    const list = [a, b];
+    expect(hasCircularDependency(a, list)).toBe(true);
+    expect(hasCircularDependency(b, list)).toBe(true);
+  });
+  it("handles self-referencing dependencies", () => {
+    const a = item({ id: "a", dependsOn: "a" });
+    expect(hasCircularDependency(a, [a])).toBe(true);
+  });
+  it("does not flag linear dependencies as circular", () => {
+    const a = item({ id: "a", dependsOn: "b" });
+    const b = item({ id: "b", dependsOn: "c" });
+    const c = item({ id: "c" });
+    const list = [a, b, c];
+    expect(hasCircularDependency(a, list)).toBe(false);
   });
 });
 

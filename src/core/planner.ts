@@ -80,8 +80,15 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push(`due in ${daysUntilDue} day(s)`);
   }
 
-  const effortPenalty = Math.min(item.effort / 20, 12);
-  score -= item.isCritical ? 0 : effortPenalty;
+  // Non-linear effort penalty: larger tasks are penalized more heavily unless critical
+  // This helps surface "quick wins" (high impact, low effort)
+  if (!item.isCritical) {
+    const effortPenalty = Math.log2(item.effort + 1) * 5;
+    score -= effortPenalty;
+    if (item.effort < 30 && item.impact >= 4) {
+      reasons.push("high-impact quick win");
+    }
+  }
 
   if (item.status === "active") {
     score += 8;

@@ -40,6 +40,7 @@ export interface PlanSummary {
   completed: number;
   overdue: number;
   dueSoon: number;
+  criticalRemaining: number;
   effort: number;
   estimatedDays: number;
   byCategory: Record<string, number>;

@@ -59,6 +59,20 @@ export function hasCircularDependency(item: LifeRecord, allItems: readonly LifeR
   return check(item.id);
 }
 
+/**
+ * Calculates the 'ripple effect': the total effort of all tasks 
+ * that are currently blocked by this item (directly or indirectly).
+ */
+function calculateRippleEffect(item: LifeRecord, allItems: readonly LifeRecord[]): number {
+  let rippleEffort = 0;
+  const blocked = allItems.filter(i => i.status !== "done" && i.dependsOn === item.id);
+  
+  for (const b of blocked) {
+    rippleEffort += b.effort + calculateRippleEffect(b, allItems);
+  }
+  return rippleEffort;
+}
+
 export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
@@ -118,6 +132,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     // Reward items with no dependencies at all to clear low-hanging fruit
     score += 5;
     reasons.push("independent task");
+  }
+
+  // Ripple Effect Bonus: identify high-leverage tasks
+  const ripple = calculateRippleEffect(item, allItems);
+  if (ripple > 0) {
+    const bonus = Math.min(ripple / 10, 40); // Cap bonus at 40 points
+    score += bonus;
+    reasons.push(`high leverage: unblocks ${ripple}m of work`);
   }
 
   if (item.status === "done") score = -1;

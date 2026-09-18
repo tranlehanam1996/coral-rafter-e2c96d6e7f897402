@@ -75,15 +75,19 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   } else if (daysUntilDue === 0) {
     score += 45;
     reasons.push("due today");
+  } else if (daysUntilDue <= 3) {
+    // Heightened urgency for imminent deadlines
+    score += 30 + (3 - daysUntilDue) * 5;
+    reasons.push(`imminent: due in ${daysUntilDue} day(s)`);
   } else if (daysUntilDue <= 7) {
-    score += 36 - daysUntilDue * 4;
+    score += 20 - daysUntilDue * 2;
     reasons.push(`due in ${daysUntilDue} day(s)`);
   }
 
   // Non-linear effort penalty: larger tasks are penalized more heavily unless critical
   // This helps surface "quick wins" (high impact, low effort)
   if (!item.isCritical) {
-    const effortPenalty = Math.log2(item.effort + 1) * 5;
+    const effortPenalty = Math.log2(item.effort + 1) * 4;
     score -= effortPenalty;
     if (item.effort < 30 && item.impact >= 4) {
       reasons.push("high-impact quick win");

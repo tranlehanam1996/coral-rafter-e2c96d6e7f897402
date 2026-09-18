@@ -76,7 +76,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     score += 45;
     reasons.push("due today");
   } else if (daysUntilDue <= 3) {
-    // Heightened urgency for imminent deadlines
     score += 30 + (3 - daysUntilDue) * 5;
     reasons.push(`imminent: due in ${daysUntilDue} day(s)`);
   } else if (daysUntilDue <= 7) {
@@ -84,8 +83,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push(`due in ${daysUntilDue} day(s)`);
   }
 
-  // Non-linear effort penalty: larger tasks are penalized more heavily unless critical
-  // This helps surface "quick wins" (high impact, low effort)
   if (!item.isCritical) {
     const effortPenalty = Math.log2(item.effort + 1) * 4;
     score -= effortPenalty;
@@ -102,16 +99,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   if (item.dependsOn) {
     const depth = getDependencyDepth(item, allItems);
     if (depth > 0) {
-      const penalty = Math.min(depth * 15, 150);
+      const penalty = Math.min(depth * 20, 200);
       score -= penalty;
       const dependency = allItems.find(i => i.id === item.dependsOn);
       if (depth >= 99) {
         reasons.push("blocked by circular dependency");
       } else {
-        reasons.push(depth > 1 
-          ? `blocked by chain of ${depth} tasks` 
-          : `blocked by "${dependency?.title || "unknown"}"`
-        );
+        reasons.push(`blocked: needs "${dependency?.title || "unknown"}" ${depth > 1 ? `(chain of ${depth})` : ""}`);
       }
     }
   }

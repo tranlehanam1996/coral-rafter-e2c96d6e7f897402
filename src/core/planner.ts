@@ -124,8 +124,8 @@ export function buildPlan(items: readonly LifeRecord[], today = localDay()): Pla
     .sort((a, b) => b.score - a.score || a.item.dueDate.localeCompare(b.item.dueDate));
 }
 
-export function summarize(items: readonly LifeRecord[], today = localDay()): PlanSummary {
-  return items.reduce<PlanSummary>((summary, item) => {
+export function summarize(items: readonly LifeRecord[], today = localDay(), dailyCapacityMinutes = 120): PlanSummary {
+  const summary = items.reduce<PlanSummary>((summary, item) => {
     summary.total += 1;
     summary.effort += item.status === "done" ? 0 : item.effort;
     summary.completed += item.status === "done" ? 1 : 0;
@@ -137,7 +137,10 @@ export function summarize(items: readonly LifeRecord[], today = localDay()): Pla
       summary.byProject[item.project] = (summary.byProject[item.project] ?? 0) + 1;
     }
     return summary;
-  }, { total: 0, completed: 0, overdue: 0, dueSoon: 0, effort: 0, byCategory: {}, byProject: {} });
+  }, { total: 0, completed: 0, overdue: 0, dueSoon: 0, effort: 0, estimatedDays: 0, byCategory: {}, byProject: {} });
+
+  summary.estimatedDays = Math.ceil(summary.effort / Math.max(1, dailyCapacityMinutes));
+  return summary;
 }
 
 export function suggestDailyLoad(items: readonly LifeRecord[], minutesPerDay: number, today = localDay()) {

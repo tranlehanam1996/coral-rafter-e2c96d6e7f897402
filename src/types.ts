@@ -41,6 +41,7 @@ export interface PlanSummary {
   overdue: number;
   dueSoon: number;
   effort: number;
+  estimatedDays: number;
   byCategory: Record<string, number>;
   byProject: Record<string, number>;
 }

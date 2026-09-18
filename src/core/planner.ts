@@ -70,8 +70,11 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   }
 
   if (daysUntilDue < 0) {
-    score += 55 + Math.min(Math.abs(daysUntilDue), 14) * 3;
-    reasons.push(`${Math.abs(daysUntilDue)} day(s) overdue`);
+    const overdueDays = Math.abs(daysUntilDue);
+    // Overdue weight: base + linear for first 14 days + accelerated for later
+    const overdueWeight = 55 + Math.min(overdueDays, 14) * 3 + Math.max(0, overdueDays - 14) * 8;
+    score += overdueWeight;
+    reasons.push(`${overdueDays} day(s) overdue`);
   } else if (daysUntilDue === 0) {
     score += 45;
     reasons.push("due today");
@@ -107,7 +110,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       } else {
         reasons.push(`blocked: needs "${dependency?.title || "unknown"}" ${depth > 1 ? `(chain of ${depth})` : ""}`);
       }
+    } else {
+      // Item has a dependency but it's already done or missing
+      score += 2;
     }
+  } else {
+    // Reward items with no dependencies at all to clear low-hanging fruit
+    score += 5;
+    reasons.push("independent task");
   }
 
   if (item.status === "done") score = -1;

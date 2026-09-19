@@ -73,6 +73,23 @@ function calculateRippleEffect(item: LifeRecord, allItems: readonly LifeRecord[]
   return rippleEffort;
 }
 
+/**
+ * Calculates how many unique tasks are blocked by this item.
+ */
+function countBlockedTasks(item: LifeRecord, allItems: readonly LifeRecord[]): number {
+  const blockedIds = new Set<string>();
+  function traverse(id: string) {
+    allItems.filter(i => i.status !== "done" && i.dependsOn === id).forEach(b => {
+      if (!blockedIds.has(b.id)) {
+        blockedIds.add(b.id);
+        traverse(b.id);
+      }
+    });
+  }
+  traverse(item.id);
+  return blockedIds.size;
+}
+
 export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
@@ -134,7 +151,15 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push("independent task");
   }
 
-  // Ripple Effect Bonus: identify high-leverage tasks
+  // Bottleneck Detection
+  const blockedCount = countBlockedTasks(item, allItems);
+  if (blockedCount > 0) {
+    const bottleneckBonus = blockedCount * 15;
+    score += bottleneckBonus;
+    reasons.push(`bottleneck: blocks ${blockedCount} task(s)`);
+  }
+
+  // Ripple Effect Bonus: identify high-leverage tasks (based on effort)
   const ripple = calculateRippleEffect(item, allItems);
   if (ripple > 0) {
     const bonus = Math.min(ripple / 10, 40); // Cap bonus at 40 points

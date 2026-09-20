@@ -96,14 +96,22 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   let score = item.impact * 12;
 
   if (item.isCritical) {
-    score += 100;
+    // Weighted bonus for critical tasks: base + impact multiplier
+    const criticalBonus = 80 + (item.impact * 10);
+    score += criticalBonus;
     reasons.push("critical priority");
   }
 
   if (daysUntilDue < 0) {
     const overdueDays = Math.abs(daysUntilDue);
     // Overdue weight: base + linear for first 14 days + accelerated for later
-    const overdueWeight = 55 + Math.min(overdueDays, 14) * 3 + Math.max(0, overdueDays - 14) * 8;
+    let overdueWeight = 55 + Math.min(overdueDays, 14) * 3 + Math.max(0, overdueDays - 14) * 8;
+    
+    // Critical tasks gain urgency faster when overdue
+    if (item.isCritical) {
+      overdueWeight *= 1.5;
+    }
+    
     score += overdueWeight;
     reasons.push(`${overdueDays} day(s) overdue`);
   } else if (daysUntilDue === 0) {

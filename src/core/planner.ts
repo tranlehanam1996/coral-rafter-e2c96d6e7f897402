@@ -170,7 +170,9 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   // Ripple Effect Bonus: identify high-leverage tasks (based on effort)
   const ripple = calculateRippleEffect(item, allItems);
   if (ripple > 0) {
-    const bonus = Math.min(ripple / 10, 40); // Cap bonus at 40 points
+    // Now integrating ripple into a 'Critical Path' bonus
+    // The more total effort we unblock, the higher the bonus, capped at 60
+    const bonus = Math.min(ripple / 5, 60);
     score += bonus;
     reasons.push(`high leverage: unblocks ${ripple}m of work`);
   }

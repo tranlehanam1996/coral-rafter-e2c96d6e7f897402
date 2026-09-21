@@ -181,6 +181,19 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     }
   }
 
+  // Batching Bonus: Reward tasks that align with the current focal project or category
+  // This encourages completing a group of similar tasks together to reduce context switching.
+  const similarTasks = allItems.filter(i => 
+    i.id !== item.id && 
+    i.status !== "done" && 
+    (i.category === item.category || (item.project && i.project === item.project))
+  );
+  if (similarTasks.length > 0) {
+    const batchBonus = Math.min(similarTasks.length * 2, 15);
+    score += batchBonus;
+    if (batchBonus >= 10) reasons.push("batching efficiency bonus");
+  }
+
   // Bottleneck Detection
   const blockedCount = countBlockedTasks(item, allItems);
   if (blockedCount > 0) {

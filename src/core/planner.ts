@@ -184,6 +184,20 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += riskBonus;
       reasons.push(`high risk: stalled bottleneck`);
     }
+
+    // Refined Risk Factor: Overdue bottlenecks are critical project risks
+    if (daysUntilDue < 0) {
+      const overdueBlockerBonus = Math.min(blockedCount * 20, 80);
+      score += overdueBlockerBonus;
+      reasons.push("critical: overdue blocker");
+    }
+
+    // Path Criticality: Bonus if this blocks any task marked as Critical
+    const blocksCritical = allItems.some(i => i.status !== "done" && i.dependsOn === item.id && i.isCritical);
+    if (blocksCritical) {
+      score += 40;
+      reasons.push("blocks critical path");
+    }
   }
 
   // Ripple Effect Bonus: identify high-leverage tasks

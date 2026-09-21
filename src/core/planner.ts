@@ -175,6 +175,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const bottleneckBonus = blockedCount * 15;
     score += bottleneckBonus;
     reasons.push(`bottleneck: blocks ${blockedCount} task(s)`);
+
+    // Risk Factor: Planned bottlenecks are more dangerous than active ones
+    if (item.status === "planned") {
+      const riskBonus = Math.min(blockedCount * 10, 50);
+      score += riskBonus;
+      reasons.push(`high risk: stalled bottleneck`);
+    }
   }
 
   // Ripple Effect Bonus: identify high-leverage tasks

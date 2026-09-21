@@ -171,6 +171,16 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push("independent task");
   }
 
+  // Project Diversity Penalty: discourage splitting focus across too many projects
+  if (item.project) {
+    const activeProjects = new Set(allItems.filter(i => i.status !== "done" && i.project).map(i => i.project!));
+    if (activeProjects.size > 3) {
+      const diversityPenalty = (activeProjects.size - 3) * 3;
+      score -= diversityPenalty;
+      reasons.push(`project overhead: ${activeProjects.size} active projects`);
+    }
+  }
+
   // Bottleneck Detection
   const blockedCount = countBlockedTasks(item, allItems);
   if (blockedCount > 0) {

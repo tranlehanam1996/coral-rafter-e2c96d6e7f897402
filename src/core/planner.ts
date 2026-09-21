@@ -60,17 +60,19 @@ export function hasCircularDependency(item: LifeRecord, allItems: readonly LifeR
 }
 
 /**
- * Calculates the 'ripple effect': the total effort of all tasks 
- * that are currently blocked by this item (directly or indirectly).
+ * Calculates the 'ripple effect': a combined score of the effort and impact
+ * of all tasks that are currently blocked by this item (directly or indirectly).
  */
 function calculateRippleEffect(item: LifeRecord, allItems: readonly LifeRecord[]): number {
-  let rippleEffort = 0;
+  let rippleValue = 0;
   const blocked = allItems.filter(i => i.status !== "done" && i.dependsOn === item.id);
   
   for (const b of blocked) {
-    rippleEffort += b.effort + calculateRippleEffect(b, allItems);
+    // Contribution: effort (normalized) + weighted impact
+    rippleValue += (b.effort / 10) + (b.impact * 5);
+    rippleValue += calculateRippleEffect(b, allItems);
   }
-  return rippleEffort;
+  return rippleValue;
 }
 
 /**
@@ -107,6 +109,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     // Overdue weight: base + linear for first 14 days + accelerated for later
     let overdueWeight = 55 + Math.min(overdueDays, 14) * 3 + Math.max(0, overdueDays - 14) * 8;
     
+    // Urgency Decay: Tasks that are extremely overdue (e.g. > 30 days) may have lost
+    // immediate relevance compared to new urgent tasks.
+    if (overdueDays > 30) {
+      const decay = Math.min(overdueDays - 30, 60) * 2;
+      overdueWeight -= decay;
+      if (decay > 10) reasons.push("overdue urgency decayed");
+    }
+
     // Critical tasks gain urgency faster when overdue
     if (item.isCritical) {
       overdueWeight *= 1.5;
@@ -167,14 +177,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push(`bottleneck: blocks ${blockedCount} task(s)`);
   }
 
-  // Ripple Effect Bonus: identify high-leverage tasks (based on effort)
+  // Ripple Effect Bonus: identify high-leverage tasks
   const ripple = calculateRippleEffect(item, allItems);
   if (ripple > 0) {
-    // Now integrating ripple into a 'Critical Path' bonus
-    // The more total effort we unblock, the higher the bonus, capped at 60
-    const bonus = Math.min(ripple / 5, 60);
+    // The higher the combined effort/impact of blocked tasks, the higher the bonus, capped at 60
+    const bonus = Math.min(ripple, 60);
     score += bonus;
-    reasons.push(`high leverage: unblocks ${ripple}m of work`);
+    reasons.push(`high leverage: unblocks critical chain`);
   }
 
   if (item.status === "done") score = -1;

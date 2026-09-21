@@ -147,6 +147,16 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   if (item.status === "active") {
     score += 8;
     reasons.push("already in progress");
+
+    // Stagnation Penalty: tasks that have been active for a long time without updates
+    const lastUpdate = new Date(item.updatedAt);
+    const lastUpdateDay = lastUpdate.toISOString().slice(0, 10);
+    const stagnationDays = daysBetween(lastUpdateDay, today);
+    if (stagnationDays > 7) {
+      const penalty = Math.min(stagnationDays * 2, 40);
+      score -= penalty;
+      reasons.push(`stagnant: no update for ${stagnationDays} days`);
+    }
   }
 
   if (item.dependsOn) {
@@ -181,17 +191,26 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     }
   }
 
-  // Batching Bonus: Reward tasks that align with the current focal project or category
-  // This encourages completing a group of similar tasks together to reduce context switching.
+  // Batching & Clustering Bonus
   const similarTasks = allItems.filter(i => 
     i.id !== item.id && 
     i.status !== "done" && 
     (i.category === item.category || (item.project && i.project === item.project))
   );
   if (similarTasks.length > 0) {
-    const batchBonus = Math.min(similarTasks.length * 2, 15);
+    let batchBonus = Math.min(similarTasks.length * 2, 15);
+    
+    // Enhanced Clustering: reward tasks that align on BOTH category and project
+    const clusterTasks = similarTasks.filter(i => 
+      i.category === item.category && item.project && i.project === item.project
+    );
+    if (clusterTasks.length > 0) {
+      batchBonus += Math.min(clusterTasks.length * 3, 15);
+      if (batchBonus >= 20) reasons.push("strong project cluster bonus");
+    }
+
     score += batchBonus;
-    if (batchBonus >= 10) reasons.push("batching efficiency bonus");
+    if (batchBonus >= 10 && batchBonus < 20) reasons.push("batching efficiency bonus");
   }
 
   // Bottleneck Detection

@@ -133,6 +133,12 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   } else if (daysUntilDue <= 7) {
     score += 20 - daysUntilDue * 2;
     reasons.push(`due in ${daysUntilDue} day(s)`);
+  } else if (daysUntilDue <= 21) {
+    // Preparation Window Bonus: encourage proactive work for tasks due in 8-21 days
+    // Higher impact tasks benefit more from early preparation
+    const prepBonus = Math.max(0, (21 - daysUntilDue) * (item.impact / 2));
+    score += prepBonus;
+    if (prepBonus > 5) reasons.push("proactive preparation window");
   }
 
   if (!item.isCritical) {

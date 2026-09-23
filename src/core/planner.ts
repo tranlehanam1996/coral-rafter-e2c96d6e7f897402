@@ -275,6 +275,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += 40;
       reasons.push("blocks critical path");
     }
+
+    // Dependency Chain Bonus: reward items that resolve a long chain of blockers
+    // This helps prioritize 'root' tasks in complex trees
+    if (blockedCount >= 3) {
+      const chainBonus = Math.min(blockedCount * 5, 30);
+      score += chainBonus;
+      reasons.push("dependency chain resolver");
+    }
   }
 
   // Ripple Effect Bonus: identify high-leverage tasks

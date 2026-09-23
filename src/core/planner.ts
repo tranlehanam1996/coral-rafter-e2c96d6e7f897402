@@ -139,13 +139,21 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const prepBonus = Math.max(0, (21 - daysUntilDue) * (item.impact / 2));
     score += prepBonus;
     if (prepBonus > 5) reasons.push("proactive preparation window");
+
+    // Urgency Buffer: High-impact tasks (4+) gain an extra push as they approach the 7-day window
+    if (item.impact >= 4 && daysUntilDue <= 14) {
+      const bufferBonus = (14 - daysUntilDue) * 2;
+      score += bufferBonus;
+      if (bufferBonus > 5) reasons.push("high-impact urgency buffer");
+    }
   }
 
   if (!item.isCritical) {
     const effortPenalty = Math.log2(item.effort + 1) * 4;
     score -= effortPenalty;
-    if (item.effort < 30 && item.impact >= 4) {
-      score += 15; // Quick win bonus
+    // Refined Quick Win: require higher impact and lower effort to avoid trivial task noise
+    if (item.effort < 20 && item.impact >= 4) {
+      score += 15;
       reasons.push("high-impact quick win");
     }
   }

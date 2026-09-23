@@ -227,6 +227,27 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (batchBonus >= 10 && batchBonus < 20) reasons.push("batching efficiency bonus");
   }
 
+  // Momentum Bonus: reward categories where the user has recently successfully closed tasks
+  const recentlyCompletedInCategory = allItems.filter(i => 
+    i.category === item.category && 
+    i.status === "done" && 
+    daysBetween(i.updatedAt.slice(0, 10), today) <= 3
+  ).length;
+  if (recentlyCompletedInCategory > 0) {
+    const momentumBonus = Math.min(recentlyCompletedInCategory * 5, 20);
+    score += momentumBonus;
+    reasons.push(`category momentum: ${recentlyCompletedInCategory} recent wins`);
+  }
+
+  // Efficiency Ratio: Reward high-impact tasks that require relatively low effort
+  // Ratio of impact (1-5) to effort (1-480). A ratio > 0.2 (e.g. Impact 4, Effort 20) is highly efficient.
+  const efficiencyRatio = item.impact / item.effort;
+  if (efficiencyRatio > 0.2) {
+    const efficiencyBonus = Math.min(efficiencyRatio * 50, 25);
+    score += efficiencyBonus;
+    reasons.push("high efficiency ratio");
+  }
+
   // Bottleneck Detection
   const blockedCount = countBlockedTasks(item, allItems);
   if (blockedCount > 0) {

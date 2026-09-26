@@ -116,6 +116,16 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       if (decay > 10) reasons.push("overdue urgency decayed");
     }
 
+    // Overdue Stagnation: Weight the penalty more heavily if it's not been touched
+    const lastUpdate = new Date(item.updatedAt);
+    const lastUpdateDay = lastUpdate.toISOString().slice(0, 10);
+    const stagnationDays = daysBetween(lastUpdateDay, today);
+    if (stagnationDays > 3) {
+      const stagnationBonus = Math.min(stagnationDays * 4, 30);
+      overdueWeight += stagnationBonus;
+      if (stagnationBonus > 10) reasons.push(`overdue stagnation: ${stagnationDays}d since update`);
+    }
+
     if (item.isCritical) {
       overdueWeight *= 1.5;
     }
@@ -292,6 +302,20 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const bonus = Math.min(ripple, 60);
     score += bonus;
     reasons.push(`high leverage: unblocks critical chain`);
+  }
+
+  // Deep Blocker Bonus: High priority if this item is the root of a long dependency chain
+  // regardless of its own urgency, to avoid late-stage discovery of roadblocks.
+  const downstreamDepth = (id: string, currentDepth = 0): number => {
+    const children = allItems.filter(i => i.status !== "done" && i.dependsOn === id);
+    if (children.length === 0) return currentDepth;
+    return Math.max(...children.map(c => downstreamDepth(c.id, currentDepth + 1)));
+  };
+  const maxDepth = downstreamDepth(item.id);
+  if (maxDepth >= 3) {
+    const deepBlockerBonus = maxDepth * 12;
+    score += deepBlockerBonus;
+    reasons.push(`deep blocker: root of ${maxDepth}-level chain`);
   }
 
   // Dead-End Penalty: Penalize tasks that are not urgent and don't unblock anything

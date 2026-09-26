@@ -160,7 +160,9 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   }
 
   if (!item.isCritical) {
-    const effortPenalty = Math.log2(item.effort + 1) * 4;
+    // Risk-Adjusted Effort Penalty: High effort tasks are more likely to be postponed
+    // the penalty grows non-linearly with effort.
+    const effortPenalty = Math.log2(item.effort + 1) * 4 + (item.effort > 120 ? (item.effort - 120) / 10 : 0);
     score -= effortPenalty;
     if (item.effort < 20 && item.impact >= 4) {
       const quickWinMultiplier = 1.2;
@@ -221,6 +223,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       const momentumBonus = Math.min(projectWins * 6, 25);
       score += momentumBonus;
       if (momentumBonus >= 12) reasons.push(`project momentum: ${projectWins} recent wins`);
+    }
+
+    // Project Completion Bonus: Encourage finishing the last few tasks of a project
+    const projectRemaining = allItems.filter(i => i.project === item.project && i.status !== "done").length;
+    if (projectRemaining <= 2) {
+      const completionBonus = (3 - projectRemaining) * 10;
+      score += completionBonus;
+      reasons.push(`project finale: ${projectRemaining} remaining`);
     }
   }
 

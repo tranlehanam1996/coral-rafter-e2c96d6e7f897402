@@ -147,8 +147,9 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const effortPenalty = Math.log2(item.effort + 1) * 4;
     score -= effortPenalty;
     if (item.effort < 20 && item.impact >= 4) {
-      score += 15;
-      reasons.push("high-impact quick win");
+      const quickWinMultiplier = 1.2;
+      score *= quickWinMultiplier;
+      reasons.push("high-impact quick win multiplier");
     }
   }
 
@@ -169,7 +170,8 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   if (item.dependsOn) {
     const depth = getDependencyDepth(item, allItems);
     if (depth > 0) {
-      const penalty = Math.min(depth * 20 + (depth > 1 ? depth * 10 : 0), 200);
+      // Nuanced Complexity Penalty: deeper chains are exponentially harder to clear
+      const penalty = Math.min(depth * 20 + Math.pow(depth, 2) * 5, 200);
       score -= penalty;
       const dependency = allItems.find(i => i.id === item.dependsOn);
       if (depth >= 99) {

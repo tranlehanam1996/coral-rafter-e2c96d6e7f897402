@@ -213,6 +213,29 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (batchBonus >= 10 && batchBonus < 20) reasons.push("batching efficiency bonus");
   }
 
+  // Synergy Bonus: High cohesion when same project and category
+  if (item.project) {
+    const synergyTasks = allItems.filter(i => 
+      i.id !== item.id && 
+      i.status !== "done" && 
+      i.project === item.project && 
+      i.category === item.category
+    );
+    if (synergyTasks.length > 0) {
+      const synergyBonus = Math.min(synergyTasks.length * 4, 20);
+      score += synergyBonus;
+      if (synergyBonus >= 12) reasons.push("project-category synergy");
+    }
+  }
+
+  // Category Saturation Penalty: Avoid too many tasks of one type to prevent burnout
+  const categoryCount = allItems.filter(i => i.category === item.category && i.status !== "done").length;
+  if (categoryCount > 8) {
+    const saturationPenalty = Math.min((categoryCount - 8) * 2, 15);
+    score -= saturationPenalty;
+    if (saturationPenalty >= 5) reasons.push("category saturation penalty");
+  }
+
   const recentlyCompletedInCategory = allItems.filter(i => 
     i.category === item.category && 
     i.status === "done" && 

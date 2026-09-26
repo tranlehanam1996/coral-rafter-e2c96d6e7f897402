@@ -95,7 +95,12 @@ function countBlockedTasks(item: LifeRecord, allItems: readonly LifeRecord[]): n
 export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
-  let score = item.impact * 12;
+  
+  // Time-weighted impact: impact is more potent as the deadline approaches
+  // For tasks due in the future, we use a base multiplier. 
+  // For tasks due today or overdue, the impact is amplified.
+  const impactMultiplier = daysUntilDue <= 0 ? 15 : 12;
+  let score = item.impact * impactMultiplier;
 
   if (item.isCritical) {
     // Weighted bonus for critical tasks: base + impact multiplier
@@ -309,12 +314,14 @@ export function buildPlan(items: readonly LifeRecord[], today = localDay()): Pla
 export function summarize(items: readonly LifeRecord[], today = localDay(), dailyCapacityMinutes = 120): PlanSummary {
   const summary = items.reduce<PlanSummary>((summary, item) => {
     summary.total += 1;
-    summary.effort += item.status === "done" ? 0 : item.effort;
     summary.completed += item.status === "done" ? 1 : 0;
-    const days = daysBetween(today, item.dueDate);
-    summary.overdue += item.status !== "done" && days < 0 ? 1 : 0;
-    summary.dueSoon += item.status !== "done" && days >= 0 && days <= 7 ? 1 : 0;
-    summary.criticalRemaining += (item.status !== "done" && item.isCritical) ? 1 : 0;
+    if (item.status !== "done") {
+      summary.effort += item.effort;
+      const days = daysBetween(today, item.dueDate);
+      summary.overdue += days < 0 ? 1 : 0;
+      summary.dueSoon += days >= 0 && days <= 7 ? 1 : 0;
+      if (item.isCritical) summary.criticalRemaining += 1;
+    }
     summary.byCategory[item.category] = (summary.byCategory[item.category] ?? 0) + 1;
     if (item.project) {
       summary.byProject[item.project] = (summary.byProject[item.project] ?? 0) + 1;

@@ -335,6 +335,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push("focus fragmentation penalty");
   }
 
+  // Burn-down Urgency Boost: Final countdown (0-2 days) gets a non-linear boost
+  // to ensure the last few tasks are prioritized before the trip starts.
+  if (daysUntilDue >= 0 && daysUntilDue <= 2) {
+    const burnDownBoost = (2 - daysUntilDue) * 15 + 10;
+    score += burnDownBoost;
+    reasons.push("final burn-down boost");
+  }
+
   if (item.status === "done") score = -1;
   if (reasons.length === 0) reasons.push("ranked by impact and effort");
   return { item, score: Math.round(score * 10) / 10, reasons, daysUntilDue };

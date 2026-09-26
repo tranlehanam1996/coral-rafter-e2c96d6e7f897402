@@ -333,10 +333,24 @@ export function suggestDailyLoad(items: readonly LifeRecord[], minutesPerDay: nu
     used: 0,
     entries: [] as PlanEntry[],
   }));
-  for (const entry of buildPlan(items, today)) {
-    const candidates = days.filter((day, index) => index <= Math.max(0, Math.min(6, entry.daysUntilDue)));
-    const target = (candidates.length > 0 ? candidates : days).sort((a, b) => a.used - b.used)[0];
+
+  const sortedEntries = buildPlan(items, today);
+
+  for (const entry of sortedEntries) {
+    // Calculate how many days we can potentially shift this task
+    // Tasks due today must be done today. Tasks due in 3 days can be shifted up to 3 days.
+    const maxDayOffset = Math.max(0, Math.min(6, entry.daysUntilDue));
+    
+    // We try to place the task as late as possible (near its deadline) if the early days are full,
+    // but we prioritize filling the earliest available slots that are under capacity first
+    // to prevent late-week bottlenecks.
+    const candidates = days
+      .slice(0, maxDayOffset + 1)
+      .sort((a, b) => a.used - b.used);
+
+    const target = candidates[0];
     if (!target) continue;
+    
     target.entries.push(entry);
     target.used += entry.item.effort;
   }

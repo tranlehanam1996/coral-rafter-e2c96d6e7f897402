@@ -97,13 +97,10 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   const reasons: string[] = [];
   
   // Time-weighted impact: impact is more potent as the deadline approaches
-  // For tasks due in the future, we use a base multiplier. 
-  // For tasks due today or overdue, the impact is amplified.
   const impactMultiplier = daysUntilDue <= 0 ? 15 : 12;
   let score = item.impact * impactMultiplier;
 
   if (item.isCritical) {
-    // Weighted bonus for critical tasks: base + impact multiplier
     const criticalBonus = 80 + (item.impact * 10);
     score += criticalBonus;
     reasons.push("critical priority");
@@ -111,18 +108,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
 
   if (daysUntilDue < 0) {
     const overdueDays = Math.abs(daysUntilDue);
-    // Overdue weight: base + linear for first 14 days + accelerated for later
     let overdueWeight = 55 + Math.min(overdueDays, 14) * 3 + Math.max(0, overdueDays - 14) * 8;
     
-    // Urgency Decay: Tasks that are extremely overdue (e.g. > 30 days) may have lost
-    // immediate relevance compared to new urgent tasks.
     if (overdueDays > 30) {
       const decay = Math.min(overdueDays - 30, 60) * 2;
       overdueWeight -= decay;
       if (decay > 10) reasons.push("overdue urgency decayed");
     }
 
-    // Critical tasks gain urgency faster when overdue
     if (item.isCritical) {
       overdueWeight *= 1.5;
     }
@@ -139,13 +132,10 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     score += 20 - daysUntilDue * 2;
     reasons.push(`due in ${daysUntilDue} day(s)`);
   } else if (daysUntilDue <= 21) {
-    // Preparation Window Bonus: encourage proactive work for tasks due in 8-21 days
-    // Higher impact tasks benefit more from early preparation
     const prepBonus = Math.max(0, (21 - daysUntilDue) * (item.impact / 2));
     score += prepBonus;
     if (prepBonus > 5) reasons.push("proactive preparation window");
 
-    // Urgency Buffer: High-impact tasks (4+) gain an extra push as they approach the 7-day window
     if (item.impact >= 4 && daysUntilDue <= 14) {
       const bufferBonus = (14 - daysUntilDue) * 2;
       score += bufferBonus;
@@ -156,7 +146,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   if (!item.isCritical) {
     const effortPenalty = Math.log2(item.effort + 1) * 4;
     score -= effortPenalty;
-    // Refined Quick Win: require higher impact and lower effort to avoid trivial task noise
     if (item.effort < 20 && item.impact >= 4) {
       score += 15;
       reasons.push("high-impact quick win");
@@ -167,7 +156,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     score += 8;
     reasons.push("already in progress");
 
-    // Stagnation Penalty: tasks that have been active for a long time without updates
     const lastUpdate = new Date(item.updatedAt);
     const lastUpdateDay = lastUpdate.toISOString().slice(0, 10);
     const stagnationDays = daysBetween(lastUpdateDay, today);
@@ -181,7 +169,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   if (item.dependsOn) {
     const depth = getDependencyDepth(item, allItems);
     if (depth > 0) {
-      // Progressive penalty: deeper dependency chains are more heavily penalized
       const penalty = Math.min(depth * 20 + (depth > 1 ? depth * 10 : 0), 200);
       score -= penalty;
       const dependency = allItems.find(i => i.id === item.dependsOn);
@@ -191,16 +178,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
         reasons.push(`blocked: needs "${dependency?.title || "unknown"}" ${depth > 1 ? `(chain of ${depth})` : ""}`);
       }
     } else {
-      // Item has a dependency but it's already done or missing
       score += 2;
     }
   } else {
-    // Reward items with no dependencies at all to clear low-hanging fruit
     score += 5;
     reasons.push("independent task");
   }
 
-  // Project Diversity Penalty: discourage splitting focus across too many projects
   if (item.project) {
     const activeProjects = new Set(allItems.filter(i => i.status !== "done" && i.project).map(i => i.project!));
     if (activeProjects.size > 3) {
@@ -210,7 +194,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     }
   }
 
-  // Batching & Clustering Bonus
   const similarTasks = allItems.filter(i => 
     i.id !== item.id && 
     i.status !== "done" && 
@@ -218,8 +201,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   );
   if (similarTasks.length > 0) {
     let batchBonus = Math.min(similarTasks.length * 2, 15);
-    
-    // Enhanced Clustering: reward tasks that align on BOTH category and project
     const clusterTasks = similarTasks.filter(i => 
       i.category === item.category && item.project && i.project === item.project
     );
@@ -232,7 +213,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (batchBonus >= 10 && batchBonus < 20) reasons.push("batching efficiency bonus");
   }
 
-  // Momentum Bonus: reward categories where the user has recently successfully closed tasks
   const recentlyCompletedInCategory = allItems.filter(i => 
     i.category === item.category && 
     i.status === "done" && 
@@ -244,8 +224,6 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push(`category momentum: ${recentlyCompletedInCategory} recent wins`);
   }
 
-  // Efficiency Ratio: Reward high-impact tasks that require relatively low effort
-  // Ratio of impact (1-5) to effort (1-480). A ratio > 0.2 (e.g. Impact 4, Effort 20) is highly efficient.
   const efficiencyRatio = item.impact / item.effort;
   if (efficiencyRatio > 0.2) {
     const efficiencyBonus = Math.min(efficiencyRatio * 50, 25);
@@ -253,36 +231,30 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push("high efficiency ratio");
   }
 
-  // Bottleneck Detection
   const blockedCount = countBlockedTasks(item, allItems);
   if (blockedCount > 0) {
     const bottleneckBonus = blockedCount * 15;
     score += bottleneckBonus;
     reasons.push(`bottleneck: blocks ${blockedCount} task(s)`);
 
-    // Risk Factor: Planned bottlenecks are more dangerous than active ones
     if (item.status === "planned") {
       const riskBonus = Math.min(blockedCount * 10, 50);
       score += riskBonus;
       reasons.push(`high risk: stalled bottleneck`);
     }
 
-    // Refined Risk Factor: Overdue bottlenecks are critical project risks
     if (daysUntilDue < 0) {
       const overdueBlockerBonus = Math.min(blockedCount * 20, 80);
       score += overdueBlockerBonus;
       reasons.push("critical: overdue blocker");
     }
 
-    // Path Criticality: Bonus if this blocks any task marked as Critical
     const blocksCritical = allItems.some(i => i.status !== "done" && i.dependsOn === item.id && i.isCritical);
     if (blocksCritical) {
       score += 40;
       reasons.push("blocks critical path");
     }
 
-    // Dependency Chain Bonus: reward items that resolve a long chain of blockers
-    // This helps prioritize 'root' tasks in complex trees
     if (blockedCount >= 3) {
       const chainBonus = Math.min(blockedCount * 5, 30);
       score += chainBonus;
@@ -290,13 +262,28 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     }
   }
 
-  // Ripple Effect Bonus: identify high-leverage tasks
   const ripple = calculateRippleEffect(item, allItems);
   if (ripple > 0) {
-    // The higher the combined effort/impact of blocked tasks, the higher the bonus, capped at 60
     const bonus = Math.min(ripple, 60);
     score += bonus;
     reasons.push(`high leverage: unblocks critical chain`);
+  }
+
+  // Dead-End Penalty: Penalize tasks that are not urgent and don't unblock anything
+  if (daysUntilDue > 7 && blockedCount === 0 && !item.isCritical) {
+    const deadEndPenalty = 15;
+    score -= deadEndPenalty;
+    reasons.push("low priority dead-end task");
+  }
+
+  // Focus Fragmentation Penalty: If this task belongs to a category that is vastly
+  // different from the bulk of current urgent work, apply a small penalty to encourage
+  // focusing on a few categories at once.
+  const urgentCategories = new Set(allItems.filter(i => i.status !== "done" && daysBetween(today, i.dueDate) <= 3).map(i => i.category));
+  if (urgentCategories.size > 0 && !urgentCategories.has(item.category)) {
+    const fragmentationPenalty = 5;
+    score -= fragmentationPenalty;
+    reasons.push("focus fragmentation penalty");
   }
 
   if (item.status === "done") score = -1;
@@ -344,13 +331,8 @@ export function suggestDailyLoad(items: readonly LifeRecord[], minutesPerDay: nu
   const sortedEntries = buildPlan(items, today);
 
   for (const entry of sortedEntries) {
-    // Calculate how many days we can potentially shift this task
-    // Tasks due today must be done today. Tasks due in 3 days can be shifted up to 3 days.
     const maxDayOffset = Math.max(0, Math.min(6, entry.daysUntilDue));
     
-    // We try to place the task as late as possible (near its deadline) if the early days are full,
-    // but we prioritize filling the earliest available slots that are under capacity first
-    // to prevent late-week bottlenecks.
     const candidates = days
       .slice(0, maxDayOffset + 1)
       .sort((a, b) => a.used - b.used);

@@ -151,6 +151,12 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += bufferBonus;
       if (bufferBonus > 5) reasons.push("high-impact urgency buffer");
     }
+  } else {
+    // Planning Horizon Penalty: Strongly discourage tasks due in > 21 days from appearing in current plan
+    // unless they are critical or provide significant leverage (bottlenecks).
+    const horizonPenalty = Math.min((daysUntilDue - 21) * 2, 50);
+    score -= horizonPenalty;
+    if (horizonPenalty > 10) reasons.push(`horizon penalty: due in ${daysUntilDue}d`);
   }
 
   if (!item.isCritical) {
@@ -264,6 +270,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const efficiencyBonus = Math.min(efficiencyRatio * 50, 25);
     score += efficiencyBonus;
     reasons.push("high efficiency ratio");
+
+    // Effort-Impact Synergy: If this high-efficiency task is part of a project, 
+    // increase the bonus to encourage focused high-impact bursts within a project.
+    if (item.project) {
+      const projectEfficiencyBonus = Math.min(efficiencyRatio * 20, 15);
+      score += projectEfficiencyBonus;
+      if (projectEfficiencyBonus > 5) reasons.push("project efficiency synergy");
+    }
   }
 
   const blockedCount = countBlockedTasks(item, allItems);

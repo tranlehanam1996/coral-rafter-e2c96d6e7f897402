@@ -210,6 +210,18 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score -= diversityPenalty;
       reasons.push(`project overhead: ${activeProjects.size} active projects`);
     }
+
+    // Project Momentum: Bonus if several tasks in the same project were completed recently
+    const projectWins = allItems.filter(i => 
+      i.project === item.project && 
+      i.status === "done" && 
+      daysBetween(i.updatedAt.slice(0, 10), today) <= 3
+    ).length;
+    if (projectWins > 0) {
+      const momentumBonus = Math.min(projectWins * 6, 25);
+      score += momentumBonus;
+      if (momentumBonus >= 12) reasons.push(`project momentum: ${projectWins} recent wins`);
+    }
   }
 
   const similarTasks = allItems.filter(i => 

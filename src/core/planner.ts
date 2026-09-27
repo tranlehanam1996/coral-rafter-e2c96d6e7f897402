@@ -292,6 +292,19 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (saturationPenalty >= 5) reasons.push("category saturation penalty");
   }
 
+  // Burn-out Prevention: Penalty if too many tasks of the same category are due in the same week
+  const categoryWeekCount = allItems.filter(i => 
+    i.id !== item.id &&
+    i.status !== "done" &&
+    i.category === item.category && 
+    Math.abs(daysBetween(item.dueDate, i.dueDate)) <= 7
+  ).length;
+  if (categoryWeekCount >= 4) {
+    const burnoutPenalty = Math.min(categoryWeekCount * 4, 30);
+    score -= burnoutPenalty;
+    if (burnoutPenalty >= 15) reasons.push(`burn-out prevention: too many ${item.category} tasks this week`);
+  }
+
   const recentlyCompletedInCategory = allItems.filter(i => 
     i.category === item.category && 
     i.status === "done" && 

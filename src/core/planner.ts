@@ -154,7 +154,8 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   } else {
     // Planning Horizon Penalty: Strongly discourage tasks due in > 21 days from appearing in current plan
     // unless they are critical or provide significant leverage (bottlenecks).
-    const horizonPenalty = Math.min((daysUntilDue - 21) * 2, 50);
+    const horizonImpactReduction = item.impact >= 4 ? 0.5 : 1;
+    const horizonPenalty = Math.min((daysUntilDue - 21) * 2 * horizonImpactReduction, 50);
     score -= horizonPenalty;
     if (horizonPenalty > 10) reasons.push(`horizon penalty: due in ${daysUntilDue}d`);
   }
@@ -383,6 +384,23 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const riskBoost = Math.min(chainImpact * 8, 40);
     score += riskBoost;
     if (riskBoost > 15) reasons.push("dependency-chain risk boost");
+  }
+
+  // Preparation Sprint: Boost priority if multiple tasks in the same project and category
+  // are due in the same 7-day window, encouraging focused bursts of work.
+  if (item.project) {
+    const sprintTasks = allItems.filter(i => 
+      i.id !== item.id && 
+      i.status !== "done" && 
+      i.project === item.project && 
+      i.category === item.category && 
+      Math.abs(daysBetween(item.dueDate, i.dueDate)) <= 7
+    );
+    if (sprintTasks.length >= 2) {
+      const sprintBonus = Math.min(sprintTasks.length * 8, 30);
+      score += sprintBonus;
+      reasons.push(`preparation sprint: ${sprintTasks.length + 1} related tasks`);
+    }
   }
 
   // Dead-End Penalty: Penalize tasks that are not urgent and don't unblock anything

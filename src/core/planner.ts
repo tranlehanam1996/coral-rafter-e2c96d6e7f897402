@@ -376,9 +376,19 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push(`deep blocker: root of ${maxDepth}-level chain`);
   }
 
+  // Dependency-Chain Risk: Boost priority if the item is the root of a chain where
+  // downstream items have high aggregate impact, increasing the risk of a late-stage bottleneck.
+  if (!item.dependsOn && maxDepth >= 2) {
+    const chainImpact = allItems.filter(i => i.status !== "done" && i.dependsOn === item.id).reduce((sum, i) => sum + i.impact, 0);
+    const riskBoost = Math.min(chainImpact * 8, 40);
+    score += riskBoost;
+    if (riskBoost > 15) reasons.push("dependency-chain risk boost");
+  }
+
   // Dead-End Penalty: Penalize tasks that are not urgent and don't unblock anything
+  // Refined: High-impact tasks (>= 4) are less penalized to avoid burying important but non-urgent work.
   if (daysUntilDue > 7 && blockedCount === 0 && !item.isCritical) {
-    const deadEndPenalty = 15;
+    const deadEndPenalty = item.impact >= 4 ? 5 : 15;
     score -= deadEndPenalty;
     reasons.push("low priority dead-end task");
   }

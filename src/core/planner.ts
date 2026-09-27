@@ -346,6 +346,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += chainBonus;
       reasons.push("dependency chain resolver");
     }
+
+    // Critical Path Leverage: If a task is both critical and a bottleneck, it is a high-stakes root.
+    if (item.isCritical) {
+      const leverageBoost = Math.min(blockedCount * 25, 100);
+      score += leverageBoost;
+      if (leverageBoost > 20) reasons.push("critical path leverage");
+    }
   }
 
   const ripple = calculateRippleEffect(item, allItems);

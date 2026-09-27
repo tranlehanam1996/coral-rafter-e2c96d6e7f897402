@@ -232,6 +232,21 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += completionBonus;
       reasons.push(`project finale: ${projectRemaining} remaining`);
     }
+
+    // Stale Project Penalty: If no task in this project has been updated in 14 days,
+    // it suggests a dormant project. Penalty increases up to 30 days.
+    const projectTasks = allItems.filter(i => i.project === item.project);
+    if (projectTasks.length > 0) {
+      const latestUpdate = projectTasks.reduce((latest, task) => {
+        return task.updatedAt > latest ? task.updatedAt : latest;
+      }, "0000-00-00");
+      const projectStagnation = daysBetween(latestUpdate.slice(0, 10), today);
+      if (projectStagnation > 14) {
+        const stalePenalty = Math.min((projectStagnation - 14) * 2, 40);
+        score -= stalePenalty;
+        if (stalePenalty > 10) reasons.push(`stale project: no activity in ${projectStagnation}d`);
+      }
+    }
   }
 
   const similarTasks = allItems.filter(i => 

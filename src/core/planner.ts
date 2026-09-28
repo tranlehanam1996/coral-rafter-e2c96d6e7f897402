@@ -329,6 +329,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += projectEfficiencyBonus;
       if (projectEfficiencyBonus > 5) reasons.push("project efficiency synergy");
     }
+
+    // LEHI (Low-Effort High-Impact) Acceleration: 
+    // Strong bonus for tasks that are both very low effort (< 15m) and high impact (>= 4).
+    if (item.effort < 15 && item.impact >= 4) {
+      const lehiBonus = 25;
+      score += lehiBonus;
+      reasons.push("LEHI acceleration bonus");
+    }
   }
 
   const blockedCount = countBlockedTasks(item, allItems);

@@ -398,6 +398,12 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       const leverageBoost = Math.min(blockedCount * 25, 100);
       score += leverageBoost;
       if (leverageBoost > 20) reasons.push("critical path leverage");
+      
+      // Critical Root: Specifically boost tasks that are critical AND block others
+      // as they are the primary inhibitors of the critical path.
+      const rootBonus = 30;
+      score += rootBonus;
+      reasons.push("critical root bottleneck");
     }
 
     // Critical Chain Bottleneck: Root tasks that block multiple critical items get a massive boost

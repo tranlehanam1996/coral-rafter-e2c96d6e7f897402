@@ -399,6 +399,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += leverageBoost;
       if (leverageBoost > 20) reasons.push("critical path leverage");
     }
+
+    // Critical Chain Bottleneck: Root tasks that block multiple critical items get a massive boost
+    const criticalBlockedCount = allItems.filter(i => i.status !== "done" && i.dependsOn === item.id && i.isCritical).length;
+    if (criticalBlockedCount >= 2) {
+      const criticalChainBoost = criticalBlockedCount * 30;
+      score += criticalChainBoost;
+      reasons.push(`critical chain bottleneck: blocks ${criticalBlockedCount} critical tasks`);
+    }
   }
 
   const ripple = calculateRippleEffect(item, allItems);

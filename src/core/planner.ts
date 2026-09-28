@@ -92,6 +92,19 @@ function countBlockedTasks(item: LifeRecord, allItems: readonly LifeRecord[]): n
   return blockedIds.size;
 }
 
+/**
+ * Dependency Heat: Sums the impact of all direct and indirect descendants.
+ * used to boost root tasks that unlock high-value chains.
+ */
+function calculateDependencyHeat(item: LifeRecord, allItems: readonly LifeRecord[]): number {
+  let heat = 0;
+  const blocked = allItems.filter(i => i.status !== "done" && i.dependsOn === item.id);
+  for (const b of blocked) {
+    heat += b.impact + calculateDependencyHeat(b, allItems);
+  }
+  return heat;
+}
+
 export function priorityFor(item: LifeRecord, today = localDay(), allItems: readonly LifeRecord[] = []): PlanEntry {
   const daysUntilDue = daysBetween(today, item.dueDate);
   const reasons: string[] = [];
@@ -407,6 +420,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (riskBoost > 15) reasons.push("dependency-chain risk boost");
   }
 
+  // Dependency Heat: Root tasks with high cumulative descendant impact get a boost
+  const heat = calculateDependencyHeat(item, allItems);
+  if (heat > 10) {
+    const heatBonus = Math.min(heat * 3, 45);
+    score += heatBonus;
+    if (heatBonus > 15) reasons.push(`dependency heat: unlocks ${heat} total impact`);
+  }
+
   // Preparation Sprint: Boost priority if multiple tasks in the same project and category
   // are due in the same 7-day window, encouraging focused bursts of work.
   if (item.project) {
@@ -440,6 +461,24 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const fragmentationPenalty = 5;
     score -= fragmentationPenalty;
     reasons.push("focus fragmentation penalty");
+  }
+
+  // Context Switch Penalty: If we have many high-priority tasks across many categories,
+  // penalize tasks that don't align with the most urgent category to encourage clustering.
+  if (urgentCategories.size > 2) {
+    const mostUrgentCat = allItems
+      .filter(i => i.status !== "done" && daysBetween(today, i.dueDate) <= 3)
+      .reduce((acc, curr) => {
+        acc.counts[curr.category] = (acc.counts[curr.category] || 0) + 1;
+        const top = Object.entries(acc.counts).sort((a,b) => b[1]-a[1])[0];
+        return { counts: acc.counts, topCat: top ? top[0] : null };
+      }, { counts: {} as Record<string, number>, topCat: null as string | null });
+
+    if (mostUrgentCat.topCat && item.category !== mostUrgentCat.topCat) {
+      const switchPenalty = 7;
+      score -= switchPenalty;
+      reasons.push("context switch penalty");
+    }
   }
 
   // Burn-down Urgency Boost: Final countdown (0-2 days) gets a non-linear boost

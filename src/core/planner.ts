@@ -173,6 +173,17 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (horizonPenalty > 10) reasons.push(`horizon penalty: due in ${daysUntilDue}d`);
   }
 
+  // Stagnation Risk: Even if not overdue, a task that hasn't been updated in 14+ days 
+  // may be a forgotten risk. Boost its priority to encourage review.
+  const lastUpdate = new Date(item.updatedAt);
+  const lastUpdateDay = lastUpdate.toISOString().slice(0, 10);
+  const stagnationDays = daysBetween(lastUpdateDay, today);
+  if (stagnationDays > 14 && daysUntilDue >= 0) {
+    const stagnationRiskBoost = Math.min((stagnationDays - 14) * 2, 20);
+    score += stagnationRiskBoost;
+    if (stagnationRiskBoost > 5) reasons.push(`stagnation risk: ${stagnationDays}d since update`);
+  }
+
   if (!item.isCritical) {
     // Risk-Adjusted Effort Penalty: High effort tasks are more likely to be postponed
     // the penalty grows non-linearly with effort.
@@ -189,13 +200,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     score += 8;
     reasons.push("already in progress");
 
-    const lastUpdate = new Date(item.updatedAt);
-    const lastUpdateDay = lastUpdate.toISOString().slice(0, 10);
-    const stagnationDays = daysBetween(lastUpdateDay, today);
-    if (stagnationDays > 7) {
-      const penalty = Math.min(stagnationDays * 2, 40);
+    const lastUpdateActive = new Date(item.updatedAt);
+    const lastUpdateActiveDay = lastUpdateActive.toISOString().slice(0, 10);
+    const activeStagnationDays = daysBetween(lastUpdateActiveDay, today);
+    if (activeStagnationDays > 7) {
+      const penalty = Math.min(activeStagnationDays * 2, 40);
       score -= penalty;
-      reasons.push(`stagnant: no update for ${stagnationDays} days`);
+      reasons.push(`stagnant: no update for ${activeStagnationDays} days`);
     }
   }
 

@@ -173,6 +173,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (horizonPenalty > 10) reasons.push(`horizon penalty: due in ${daysUntilDue}d`);
   }
 
+  // Strategic Buffer: For high-impact tasks due far in the future, a small boost 
+  // encourages completing them early to clear the deck for the final rush.
+  if (daysUntilDue > 14 && item.impact >= 4) {
+    const strategicBonus = 10;
+    score += strategicBonus;
+    reasons.push("strategic early-completion buffer");
+  }
+
   // Stagnation Risk: Even if not overdue, a task that hasn't been updated in 14+ days 
   // may be a forgotten risk. Boost its priority to encourage review.
   const lastUpdate = new Date(item.updatedAt);
@@ -434,6 +442,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const deepBlockerBonus = maxDepth * 12;
     score += deepBlockerBonus;
     reasons.push(`deep blocker: root of ${maxDepth}-level chain`);
+  }
+
+  // Dependency Friction: Penalize tasks that are part of an excessively long chain
+  // to encourage breaking them into smaller, independent pieces.
+  if (maxDepth >= 5) {
+    const frictionPenalty = (maxDepth - 4) * 10;
+    score -= frictionPenalty;
+    reasons.push(`dependency friction: chain too long (${maxDepth})`);
   }
 
   // Dependency-Chain Risk: Boost priority if the item is the root of a chain where

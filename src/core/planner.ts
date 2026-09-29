@@ -541,6 +541,31 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push("final burn-down boost");
   }
 
+  // Multi-Category Focus: Boost tasks in categories that are currently under-represented
+  // in the active plan, but only when the trip is imminent (<= 7 days).
+  if (daysUntilDue <= 7 && daysUntilDue >= 0) {
+    const activeCats = new Set(allItems.filter(i => i.status !== "done" && daysBetween(today, i.dueDate) <= 7).map(i => i.category));
+    const catCounts = allItems.filter(i => i.status !== "done" && daysBetween(today, i.dueDate) <= 7).reduce((acc, i) => {
+      acc[i.category] = (acc[i.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const minCatCount = Math.min(...Object.values(catCounts));
+    if (catCounts[item.category] === minCatCount && activeCats.size > 1) {
+      const focusBonus = 15;
+      score += focusBonus;
+      reasons.push("multi-category focus bonus");
+    }
+  }
+
+  // Last-Mile Pressure: Massive boost for high-impact tasks due in the final 48 hours
+  // to prevent 'last-minute panic' by forcing them to the top.
+  if (daysUntilDue >= 0 && daysUntilDue <= 2 && item.impact >= 4) {
+    const lastMileBoost = (2 - daysUntilDue) * 30 + 40;
+    score += lastMileBoost;
+    reasons.push("last-mile pressure boost");
+  }
+
   if (item.status === "done") score = -1;
   if (reasons.length === 0) reasons.push("ranked by impact and effort");
   return { item, score: Math.round(score * 10) / 10, reasons, daysUntilDue };

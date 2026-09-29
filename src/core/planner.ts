@@ -266,9 +266,20 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       reasons.push(`project finale: ${projectRemaining} remaining`);
     }
 
+    // Project Completion Rate Momentum: Boost projects that are significantly underway
+    const projectTasks = allItems.filter(i => i.project === item.project);
+    if (projectTasks.length > 5) {
+      const projectDone = projectTasks.filter(i => i.status === "done").length;
+      const completionRate = projectDone / projectTasks.length;
+      if (completionRate >= 0.5 && completionRate < 1) {
+        const momentumBoost = Math.min(completionRate * 20, 20);
+        score += momentumBoost;
+        if (momentumBoost >= 10) reasons.push(`project momentum: ${Math.round(completionRate * 100)}% complete`);
+      }
+    }
+
     // Stale Project Penalty: If no task in this project has been updated in 14 days,
     // it suggests a dormant project. Penalty increases up to 30 days.
-    const projectTasks = allItems.filter(i => i.project === item.project);
     if (projectTasks.length > 0) {
       const latestUpdate = projectTasks.reduce((latest, task) => {
         return task.updatedAt > latest ? task.updatedAt : latest;

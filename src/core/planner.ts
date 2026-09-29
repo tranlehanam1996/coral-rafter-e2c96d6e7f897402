@@ -192,6 +192,13 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     if (stagnationRiskBoost > 5) reasons.push(`stagnation risk: ${stagnationDays}d since update`);
   }
 
+  // Fresh Start Bonus: Boost tasks updated today to keep momentum on current active thoughts
+  if (stagnationDays === 0) {
+    const momentumBonus = 12;
+    score += momentumBonus;
+    reasons.push("fresh start momentum");
+  }
+
   if (!item.isCritical) {
     // Risk-Adjusted Effort Penalty: High effort tasks are more likely to be postponed
     // the penalty grows non-linearly with effort.
@@ -564,6 +571,17 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const lastMileBoost = (2 - daysUntilDue) * 30 + 40;
     score += lastMileBoost;
     reasons.push("last-mile pressure boost");
+  }
+
+  // Blocked Chain Depth Penalty: Penalize tasks that are far down a dependency chain
+  // to prevent them from surfacing before their predecessors are clearly priority.
+  if (item.dependsOn) {
+    const chainDepth = getDependencyDepth(item, allItems);
+    if (chainDepth > 2) {
+      const depthPenalty = (chainDepth - 2) * 15;
+      score -= depthPenalty;
+      reasons.push(`deeply blocked: chain depth ${chainDepth}`);
+    }
   }
 
   if (item.status === "done") score = -1;

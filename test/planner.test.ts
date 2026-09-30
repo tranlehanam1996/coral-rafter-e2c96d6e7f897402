@@ -50,6 +50,13 @@ describe("planning engine", () => {
     const list = [a, b, c];
     expect(hasCircularDependency(a, list)).toBe(false);
   });
+  it("applies critical path focus bonus when a critical task blocks another critical task", () => {
+    const root = item({ id: "root", isCritical: true, dependsOn: undefined });
+    const leaf = item({ id: "leaf", isCritical: true, dependsOn: "root" });
+    const list = [root, leaf];
+    const entry = priorityFor(root, "2026-08-20", list);
+    expect(entry.reasons).toContain("critical path focus bonus");
+  });
 });
 
 describe("JSON exchange boundary", () => {

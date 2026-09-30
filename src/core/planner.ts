@@ -439,6 +439,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score += criticalChainBoost;
       reasons.push(`critical chain bottleneck: blocks ${criticalBlockedCount} critical tasks`);
     }
+
+    // Critical Path Focus: If this task is critical and it blocks another critical task, 
+    // it's the primary inhibitor of the critical path. Give it a heavy priority boost.
+    if (item.isCritical && criticalBlockedCount > 0) {
+      const criticalPathBonus = 50;
+      score += criticalPathBonus;
+      reasons.push("critical path focus bonus");
+    }
   }
 
   const ripple = calculateRippleEffect(item, allItems);

@@ -649,6 +649,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push("low-impact high-effort variance penalty");
   }
 
+  // Panic Threshold: For high-effort tasks (>= 120m) that are not yet active
+  // and are due within 5 days, apply a massive boost to prevent 'effort paralysis'.
+  if (item.effort >= 120 && item.status === "planned" && daysUntilDue <= 5 && daysUntilDue >= 0) {
+    const panicBoost = (5 - daysUntilDue) * 20 + 30;
+    score += panicBoost;
+    reasons.push("panic threshold: high-effort task imminent");
+  }
+
   if (item.status === "done") score = -1;
   if (reasons.length === 0) reasons.push("ranked by impact and effort");
   return { item, score: Math.round(score * 10) / 10, reasons, daysUntilDue };

@@ -592,6 +592,25 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     }
   }
 
+  // Lead-Time Acceleration: Boost tasks that unblock a significant amount of total effort,
+  // even if they aren't urgent themselves. This prevents late-stage bottlenecks.
+  const totalBlockedEffort = allItems
+    .filter(i => i.status !== "done" && i.dependsOn === item.id)
+    .reduce((sum, i) => sum + i.effort, 0);
+  if (totalBlockedEffort > 120) {
+    const leadTimeBonus = Math.min(totalBlockedEffort / 10, 40);
+    score += leadTimeBonus;
+    reasons.push(`lead-time acceleration: unblocks ${totalBlockedEffort}m of work`);
+  }
+
+  // Stagnant Critical Path Penalty: If a critical task is not overdue but hasn't been
+  // updated in 7+ days, it's a risk. Boost it to force a status check.
+  if (item.isCritical && daysUntilDue >= 0 && stagnationDays > 7) {
+    const criticalStagnationBoost = Math.min(stagnationDays * 5, 50);
+    score += criticalStagnationBoost;
+    reasons.push(`critical path stagnation: ${stagnationDays}d since update`);
+  }
+
   if (item.status === "done") score = -1;
   if (reasons.length === 0) reasons.push("ranked by impact and effort");
   return { item, score: Math.round(score * 10) / 10, reasons, daysUntilDue };

@@ -273,8 +273,20 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       reasons.push(`project finale: ${projectRemaining} remaining`);
     }
 
-    // Project Completion Rate Momentum: Boost projects that are significantly underway
+    // Sunk Cost Momentum: Significant boost for projects that are almost entirely done
+    // to clear the mental load of maintaining an open project.
     const projectTasks = allItems.filter(i => i.project === item.project);
+    if (projectTasks.length > 3) {
+      const projectDone = projectTasks.filter(i => i.status === "done").length;
+      const completionRate = projectDone / projectTasks.length;
+      if (completionRate >= 0.8 && completionRate < 1) {
+        const sunkCostBonus = 25;
+        score += sunkCostBonus;
+        reasons.push("sunk cost momentum: nearly finished project");
+      }
+    }
+
+    // Project Completion Rate Momentum: Boost projects that are significantly underway
     if (projectTasks.length > 5) {
       const projectDone = projectTasks.filter(i => i.status === "done").length;
       const completionRate = projectDone / projectTasks.length;
@@ -446,6 +458,16 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       const criticalPathBonus = 50;
       score += criticalPathBonus;
       reasons.push("critical path focus bonus");
+    }
+
+    // Dependency Stability: Penalize root tasks that unblock too many diverse categories.
+    // This prevents a single 'generic' root from dominating the plan if it's just a
+    // wide-reaching but low-urgency administrative task.
+    const blockedCategories = new Set(allItems.filter(i => i.status !== "done" && i.dependsOn === item.id).map(i => i.category));
+    if (blockedCategories.size > 3) {
+      const stabilityPenalty = blockedCategories.size * 5;
+      score -= stabilityPenalty;
+      reasons.push(`dependency stability penalty: unblocks ${blockedCategories.size} categories`);
     }
   }
 

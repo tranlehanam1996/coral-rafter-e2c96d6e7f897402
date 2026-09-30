@@ -200,9 +200,12 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
   }
 
   if (!item.isCritical) {
-    // Risk-Adjusted Effort Penalty: High effort tasks are more likely to be postponed
-    // the penalty grows non-linearly with effort.
-    const effortPenalty = Math.log2(item.effort + 1) * 4 + (item.effort > 120 ? (item.effort - 120) / 10 : 0);
+    // Fatigue-Aware Effort Scaling: The penalty for high effort is amplified if the overall 
+    // remaining workload is huge, to prevent the user from feeling overwhelmed.
+    const remainingEffort = allItems.filter(i => i.status !== "done").reduce((sum, i) => sum + i.effort, 0);
+    const fatigueMultiplier = remainingEffort > 1440 ? 1.5 : 1.0; // > 24h of work remaining
+
+    const effortPenalty = (Math.log2(item.effort + 1) * 4 + (item.effort > 120 ? (item.effort - 120) / 10 : 0)) * fatigueMultiplier;
     score -= effortPenalty;
     if (item.effort < 20 && item.impact >= 4) {
       const quickWinMultiplier = 1.2;
@@ -273,9 +276,17 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       reasons.push(`project finale: ${projectRemaining} remaining`);
     }
 
+    // Project Density Penalty: If a project has too many tasks, it can feel like a monolith.
+    // Penalize tasks in oversized projects to encourage breaking them down.
+    const projectTasks = allItems.filter(i => i.project === item.project);
+    if (projectTasks.length > 15) {
+      const densityPenalty = Math.min((projectTasks.length - 15) * 2, 20);
+      score -= densityPenalty;
+      if (densityPenalty > 5) reasons.push("project density penalty");
+    }
+
     // Sunk Cost Momentum: Significant boost for projects that are almost entirely done
     // to clear the mental load of maintaining an open project.
-    const projectTasks = allItems.filter(i => i.project === item.project);
     if (projectTasks.length > 3) {
       const projectDone = projectTasks.filter(i => i.status === "done").length;
       const completionRate = projectDone / projectTasks.length;

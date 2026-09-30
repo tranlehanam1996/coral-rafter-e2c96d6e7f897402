@@ -611,6 +611,22 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     reasons.push(`critical path stagnation: ${stagnationDays}d since update`);
   }
 
+  // High-Stakes Deadline: For high-impact tasks due in 3-7 days, boost priority 
+  // if they have high effort, to prevent them from becoming 'last-mile' panic items.
+  if (daysUntilDue >= 3 && daysUntilDue <= 7 && item.impact >= 4 && item.effort > 60) {
+    const highStakesBoost = 20;
+    score += highStakesBoost;
+    reasons.push("high-stakes deadline buffer");
+  }
+
+  // Effort-Impact Variance: Penalize tasks with very high effort but low impact
+  // more aggressively when they are not critical, to keep the plan lean.
+  if (!item.isCritical && item.effort > 180 && item.impact <= 2) {
+    const variancePenalty = 25;
+    score -= variancePenalty;
+    reasons.push("low-impact high-effort variance penalty");
+  }
+
   if (item.status === "done") score = -1;
   if (reasons.length === 0) reasons.push("ranked by impact and effort");
   return { item, score: Math.round(score * 10) / 10, reasons, daysUntilDue };

@@ -129,6 +129,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       if (decay > 10) reasons.push("overdue urgency decayed");
     }
 
+    // Deadly Deadline: If a non-critical task is massively overdue, it's often no longer
+    // relevant or has been superseded. Penalize it heavily to clear clutter.
+    if (!item.isCritical && overdueDays > 60) {
+      const deadlyPenalty = 100;
+      overdueWeight -= deadlyPenalty;
+      reasons.push("deadly deadline: severely stale task");
+    }
+
     // Overdue Stagnation: Weight the penalty more heavily if it's not been touched
     const lastUpdate = new Date(item.updatedAt);
     const lastUpdateDay = lastUpdate.toISOString().slice(0, 10);
@@ -487,6 +495,15 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       const stabilityPenalty = blockedCategories.size * 5;
       score -= stabilityPenalty;
       reasons.push(`dependency stability penalty: unblocks ${blockedCategories.size} categories`);
+    }
+
+    // High-Value Bottleneck Multiplier: If a task blocks a high aggregate impact, 
+    // it's a high-value bottleneck. Apply a multiplier to its score to ensure it's prioritized.
+    const blockedImpact = allItems.filter(i => i.status !== "done" && i.dependsOn === item.id).reduce((sum, i) => sum + i.impact, 0);
+    if (blockedImpact >= 10) {
+      const multiplier = 1 + (blockedImpact / 50);
+      score *= multiplier;
+      reasons.push(`high-value bottleneck multiplier: unlocks ${blockedImpact} impact`);
     }
   }
 

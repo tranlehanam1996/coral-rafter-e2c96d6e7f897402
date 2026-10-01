@@ -226,6 +226,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
       score -= penalty;
       reasons.push(`stagnant: no update for ${activeStagnationDays} days`);
     }
+
+    // Momentum Stall: If a task is active but hasn't been updated in a few days,
+    // it's losing momentum. Boost priority to nudge the user to finish it.
+    if (activeStagnationDays >= 3 && activeStagnationDays <= 7) {
+      const stallBoost = (activeStagnationDays - 2) * 4;
+      score += stallBoost;
+      reasons.push(`momentum stall: nudge to finish active task`);
+    }
   }
 
   if (item.dependsOn) {
@@ -666,6 +674,14 @@ export function priorityFor(item: LifeRecord, today = localDay(), allItems: read
     const panicBoost = (5 - daysUntilDue) * 20 + 30;
     score += panicBoost;
     reasons.push("panic threshold: high-effort task imminent");
+  }
+
+  // Last-Minute Pivot: For high-impact tasks that are not yet active but are due very soon,
+  // give a boost to encourage switching focus to them before they become critical.
+  if (item.impact >= 4 && item.status === "planned" && daysUntilDue >= 0 && daysUntilDue <= 3) {
+    const pivotBonus = 15;
+    score += pivotBonus;
+    reasons.push("last-minute pivot bonus");
   }
 
   if (item.status === "done") score = -1;

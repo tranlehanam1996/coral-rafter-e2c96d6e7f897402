@@ -28,11 +28,22 @@ export interface ThemeConfig {
   readonly seeds: readonly (readonly [string, string, number, number])[];
 }
 
+export interface ScoreBreakdown {
+  baseScore: number;
+  urgencyBonus: number;
+  impactBonus: number;
+  dependencyBonus: number;
+  criticalityBonus: number;
+  penalties: number;
+  total: number;
+}
+
 export interface PlanEntry {
   item: LifeRecord;
   score: number;
   reasons: string[];
   daysUntilDue: number;
+  breakdown?: ScoreBreakdown;
 }
 
 export interface PlanSummary {

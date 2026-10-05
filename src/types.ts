@@ -11,7 +11,7 @@ export interface LifeRecord {
   notes: string;
   createdAt: string;
   updatedAt: string;
-  dependsOn?: string;
+  dependsOn?: string | string[];
   isCritical?: boolean;
   project?: string;
 }

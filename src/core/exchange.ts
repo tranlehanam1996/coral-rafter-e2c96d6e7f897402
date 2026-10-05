@@ -17,8 +17,6 @@ function isTimestamp(value: unknown): value is string {
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return false;
-  // Backups emitted by this app always use UTC. Accept seconds-only input too, but compare the
-  // normalized instant so impossible dates (for example February 30) cannot roll into March.
   const canonical = value.includes(".") ? value : value.replace(/Z$/, ".000Z");
   return parsed.toISOString() === canonical;
 }
@@ -54,7 +52,16 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     throw new Error(`Record ${index + 1} has invalid timestamps.`);
   }
   
-  const dependsOn = typeof raw.dependsOn === "string" ? raw.dependsOn : undefined;
+  let dependsOn: string | string[] | undefined = undefined;
+  if (typeof raw.dependsOn === "string") {
+    dependsOn = raw.dependsOn;
+  } else if (Array.isArray(raw.dependsOn)) {
+    if (!raw.dependsOn.every(id => typeof id === "string")) {
+      throw new Error(`Record ${index + 1} has invalid dependency array.`);
+    }
+    dependsOn = raw.dependsOn as string[];
+  }
+
   const project = typeof raw.project === "string" ? raw.project.trim() : undefined;
 
   return {

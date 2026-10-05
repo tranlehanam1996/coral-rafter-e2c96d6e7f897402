@@ -57,6 +57,15 @@ describe("planning engine", () => {
     const entry = priorityFor(root, "2026-08-20", list);
     expect(entry.reasons).toContain("critical path focus bonus");
   });
+  it("applies bottleneck bonus to tasks blocking multiple other tasks", () => {
+    const bottleneck = item({ id: "bottleneck", dependsOn: undefined });
+    const dep1 = item({ id: "d1", dependsOn: "bottleneck" });
+    const dep2 = item({ id: "d2", dependsOn: "bottleneck" });
+    const dep3 = item({ id: "d3", dependsOn: "bottleneck" });
+    const list = [bottleneck, dep1, dep2, dep3];
+    const entry = priorityFor(bottleneck, "2026-08-20", list);
+    expect(entry.reasons.some(r => r.toLowerCase().includes("bottleneck"))).toBe(true);
+  });
 });
 
 describe("JSON exchange boundary", () => {

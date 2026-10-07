@@ -44,6 +44,7 @@ export interface PlanEntry {
   reasons: string[];
   daysUntilDue: number;
   breakdown?: ScoreBreakdown;
+  isCriticalPath?: boolean;
 }
 
 export interface PlanSummary {

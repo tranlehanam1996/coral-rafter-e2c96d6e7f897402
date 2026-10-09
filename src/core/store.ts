@@ -31,6 +31,12 @@ export class RecordStore {
     this.commit();
   }
 
+  removeMany(ids: string[]): void {
+    const idSet = new Set(ids);
+    this.records = this.records.filter((item) => !idSet.has(item.id));
+    this.commit();
+  }
+
   replace(records: LifeRecord[]): void {
     this.records = records.map((item) => ({ ...item }));
     this.commit();

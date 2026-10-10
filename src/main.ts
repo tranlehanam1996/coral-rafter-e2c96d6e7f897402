@@ -39,6 +39,7 @@ class App {
     const effEl = document.getElementById("task-eff") as HTMLInputElement;
     const impEl = document.getElementById("task-imp") as HTMLInputElement;
     const noteEl = document.getElementById("task-note") as HTMLTextAreaElement;
+    const critEl = document.getElementById("task-crit") as HTMLInputElement;
 
     if (!titleEl.value.trim()) return;
 
@@ -57,6 +58,7 @@ class App {
       notes: noteEl.value,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      isCritical: critEl?.checked || false,
     };
 
     this.store.upsert(record);
@@ -102,6 +104,12 @@ class App {
           <label>Notes</label>
           <textarea id="edit-notes">${record.notes}</textarea>
         </div>
+        <div class="field">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
+            <input type="checkbox" id="edit-critical" style="width: auto" ${record.isCritical ? 'checked' : ''}>
+            Mark as Critical
+          </label>
+        </div>
         <div class="modal-actions">
           <button class="ghost" id="edit-cancel">Cancel</button>
           <button id="edit-save">Save</button>
@@ -114,7 +122,8 @@ class App {
     const save = () => {
       const title = (document.getElementById("edit-title") as HTMLInputElement).value;
       const notes = (document.getElementById("edit-notes") as HTMLTextAreaElement).value;
-      this.store.upsert({ ...record, title: title.trim(), notes, updatedAt: new Date().toISOString() });
+      const isCritical = (document.getElementById("edit-critical") as HTMLInputElement).checked;
+      this.store.upsert({ ...record, title: title.trim(), notes, isCritical, updatedAt: new Date().toISOString() });
       document.body.removeChild(modal);
     };
 
@@ -193,6 +202,12 @@ class App {
               <label>${theme.impactLabel}</label>
               <input id="task-imp" type="number" value="3" min="1" max="5">
             </div>
+          </div>
+          <div class="field">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
+              <input type="checkbox" id="task-crit" style="width: auto">
+              Critical Path
+            </label>
           </div>
           <div class="field">
             <label>Notes</label>
@@ -286,11 +301,12 @@ class App {
       const isOverdue = item.dueDate < new Date().toISOString().split('T')[0] && item.status !== "done";
       
       return `
-        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''}">
+        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''}">
           <div>
             <div class="badge ${item.status === 'active' ? 'active-badge' : ''}">${item.status}</div>
             <div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>
             <div class="badge">${item.category}</div>
+            ${item.isCritical ? '<div class="badge critical-badge">Critical</div>' : ''}
             <h3 onclick="window.dispatchEvent(new CustomEvent('edit-task', {detail: '${item.id}'}))">${item.title}</h3>
             <div class="reasons">${entry.reasons.join(", ")}</div>
             <div class="editable-notes" contenteditable="true" onblur="window.dispatchEvent(new CustomEvent('update-note', {detail: {id: '${item.id}', note: this.innerText}}))">${item.notes}</div>

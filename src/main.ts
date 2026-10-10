@@ -1,9 +1,9 @@
 import { RecordStore } from "./core/store";
-import { buildPlan, summarize, suggestDailyLoad } from "./core/planner";
+import { buildPlan, summarize, suggestDailyLoad, hasCircularDependency } from "./core/planner";
 import { theme } from "./theme";
 import { exportJson, exportCsv, importJson, download } from "./core/exchange";
 import { parseRelativeDate } from "./core/date-utils";
-import type { LifeRecord, ThemeConfig } from "./types";
+import type { LifeRecord, ThemeConfig, PlanEntry } from "./types";
 import { revisionLedger } from "./generated/revision-ledger";
 
 class App {
@@ -138,6 +138,7 @@ class App {
             ${allRecords.map(r => `<option value="${r.id}" ${record.dependsOn === r.id ? 'selected' : ''}>${r.title}</option>`).join('')}
           </select>
         </div>
+        <div id="circular-warning" style="color: #b91c1c; font-size: .8rem; font-weight: 700; margin-bottom: 1rem; display: none">⚠️ This dependency creates a circular reference!</div>
         <div class="field">
           <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
             <input type="checkbox" id="edit-critical" style="width: auto" ${record.isCritical ? 'checked' : ''}>
@@ -152,6 +153,24 @@ class App {
     `;
 
     document.body.appendChild(modal);
+
+    const depSelect = document.getElementById("edit-dep") as HTMLSelectElement;
+    const warnEl = document.getElementById("circular-warning");
+    
+    const updateCircularWarning = () => {
+      const depId = depSelect.value || undefined;
+      if (!depId) {
+        if (warnEl) warnEl.style.display = "none";
+        return;
+      }
+      const potentialRecord = { ...record, dependsOn: depId };
+      const allWithPotential = [...allRecords, potentialRecord];
+      const isCircular = hasCircularDependency(potentialRecord, allWithPotential);
+      if (warnEl) warnEl.style.display = isCircular ? "block" : "none";
+    };
+
+    depSelect?.addEventListener("change", updateCircularWarning);
+    updateCircularWarning();
 
     const save = () => {
       const title = (document.getElementById("edit-title") as HTMLInputElement).value;
@@ -366,6 +385,11 @@ class App {
         if (depItem && depItem.status !== "done") {
           blockWarning = `<div class="badge blocked-badge">Blocked by: ${depItem.title}</div>`;
         }
+      }
+
+      const isCircular = hasCircularDependency(item, allRecords);
+      if (isCircular) {
+        blockWarning = `<div class="badge blocked-badge" style="background: #fecaca; color: #991b1b">Circular Dependency!</div>`;
       }
 
       return `

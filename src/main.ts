@@ -105,6 +105,28 @@ class App {
           <label>Title</label>
           <input id="edit-title" value="${record.title}">
         </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>${theme.dateLabel}</label>
+            <input type="date" id="edit-date" value="${record.dueDate}">
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select id="edit-cat">
+              ${theme.categories.map(c => `<option value="${c}" ${record.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>${theme.effortLabel}</label>
+            <input type="number" id="edit-eff" value="${record.effort}">
+          </div>
+          <div class="field">
+            <label>${theme.impactLabel}</label>
+            <input type="number" id="edit-imp" value="${record.impact}" min="1" max="5">
+          </div>
+        </div>
         <div class="field">
           <label>Notes</label>
           <textarea id="edit-notes">${record.notes}</textarea>
@@ -136,7 +158,23 @@ class App {
       const notes = (document.getElementById("edit-notes") as HTMLTextAreaElement).value;
       const isCritical = (document.getElementById("edit-critical") as HTMLInputElement).checked;
       const dependsOn = (document.getElementById("edit-dep") as HTMLSelectElement).value || undefined;
-      this.store.upsert({ ...record, title: title.trim(), notes, isCritical, dependsOn, updatedAt: new Date().toISOString() });
+      const category = (document.getElementById("edit-cat") as HTMLSelectElement).value;
+      const dueDate = (document.getElementById("edit-date") as HTMLInputElement).value;
+      const effort = parseInt((document.getElementById("edit-eff") as HTMLInputElement).value) || 30;
+      const impact = parseInt((document.getElementById("edit-imp") as HTMLInputElement).value) || 3;
+      
+      this.store.upsert({ 
+        ...record, 
+        title: title.trim(), 
+        notes, 
+        isCritical, 
+        dependsOn, 
+        category, 
+        dueDate, 
+        effort, 
+        impact, 
+        updatedAt: new Date().toISOString() 
+      });
       document.body.removeChild(modal);
     };
 
@@ -352,7 +390,6 @@ class App {
   }
 }
 
-// Event delegates for HTML strings
 window.addEventListener("toggle-task", (e: any) => (window as any).app?.handleToggleStatus(e.detail));
 window.addEventListener("remove-task", (e: any) => (window as any).app?.handleRemove(e.detail));
 window.addEventListener("edit-task", (e: any) => (window as any).app?.handleEdit(e.detail));

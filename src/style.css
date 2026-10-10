@@ -15,7 +15,7 @@ label { display: grid; gap: .35rem; color: #526b64; font-size: .82rem; font-weig
 .editable-notes { cursor: text; opacity: 0.8; transition: opacity 0.2s; } .editable-notes:focus { opacity: 1; outline: none; background: #fcfdfc; border-radius: 4px; }
 .record h3:focus { outline: none; color: #176b55; }
 .reasons { margin: .3rem 0 0; color: #698078; font-size: .86rem; font-style: italic; }
-.badge { display: inline-flex; padding: .22rem .5rem; border-radius: 99px; background: #e4f0eb; color: #176b55; font-size: .7rem; font-weight: 800; } .active-badge { background: #176b55; color: white; } .priority-badge { background: #fde68a; color: #92400e; } .critical-badge { background: #fecaca; color: #991b1b; }
+.badge { display: inline-flex; padding: .22rem .5rem; border-radius: 99px; background: #e4f0eb; color: #176b55; font-size: .7rem; font-weight: 800; } .active-badge { background: #176b55; color: white; } .priority-badge { background: #fde68a; color: #92400e; } .critical-badge { background: #fecaca; color: #991b1b; } .blocked-badge { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .record-actions { display: grid; grid-template-columns: 50px 100px; gap: .5rem; align-items: center; text-align: right; }
 .record-actions strong { font-size: 1.4rem; }
 .week-panel { margin-top: 1.2rem; } .week { display: grid; grid-template-columns: repeat(7,1fr); gap: .65rem; } .day { padding: .8rem; border-radius: .7rem; background: #edf6f2; } .day span,.day small { display: block; } .day strong { display: block; margin: .35rem 0; }

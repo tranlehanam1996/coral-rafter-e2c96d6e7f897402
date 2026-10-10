@@ -40,12 +40,15 @@ class App {
     const impEl = document.getElementById("task-imp") as HTMLInputElement;
     const noteEl = document.getElementById("task-note") as HTMLTextAreaElement;
     const critEl = document.getElementById("task-crit") as HTMLInputElement;
+    const depEl = document.getElementById("task-dep") as HTMLSelectElement;
 
     if (!titleEl.value.trim()) return;
 
     let dueDate = dateEl.value;
     const relative = parseRelativeDate(dueDate);
     if (relative) dueDate = relative;
+
+    const dependsOn = depEl?.value && depEl.value !== "" ? depEl.value : undefined;
 
     const record: LifeRecord = {
       id: crypto.randomUUID(),
@@ -59,6 +62,7 @@ class App {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isCritical: critEl?.checked || false,
+      dependsOn,
     };
 
     this.store.upsert(record);
@@ -91,6 +95,7 @@ class App {
     const record = this.store.all().find(r => r.id === id);
     if (!record) return;
 
+    const allRecords = this.store.all().filter(r => r.id !== id);
     const modal = document.createElement("div");
     modal.className = "modal-overlay";
     modal.innerHTML = `
@@ -103,6 +108,13 @@ class App {
         <div class="field">
           <label>Notes</label>
           <textarea id="edit-notes">${record.notes}</textarea>
+        </div>
+        <div class="field">
+          <label>Depends On</label>
+          <select id="edit-dep">
+            <option value="">None</option>
+            ${allRecords.map(r => `<option value="${r.id}" ${record.dependsOn === r.id ? 'selected' : ''}>${r.title}</option>`).join('')}
+          </select>
         </div>
         <div class="field">
           <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
@@ -123,7 +135,8 @@ class App {
       const title = (document.getElementById("edit-title") as HTMLInputElement).value;
       const notes = (document.getElementById("edit-notes") as HTMLTextAreaElement).value;
       const isCritical = (document.getElementById("edit-critical") as HTMLInputElement).checked;
-      this.store.upsert({ ...record, title: title.trim(), notes, isCritical, updatedAt: new Date().toISOString() });
+      const dependsOn = (document.getElementById("edit-dep") as HTMLSelectElement).value || undefined;
+      this.store.upsert({ ...record, title: title.trim(), notes, isCritical, dependsOn, updatedAt: new Date().toISOString() });
       document.body.removeChild(modal);
     };
 
@@ -202,6 +215,13 @@ class App {
               <label>${theme.impactLabel}</label>
               <input id="task-imp" type="number" value="3" min="1" max="5">
             </div>
+          </div>
+          <div class="field">
+            <label>Depends On</label>
+            <select id="task-dep">
+              <option value="">None</option>
+              ${records.map(r => `<option value="${r.id}">${r.title}</option>`).join('')}
+            </select>
           </div>
           <div class="field">
             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
@@ -287,6 +307,7 @@ class App {
   }
 
   private renderTasks(plan: PlanEntry[]) {
+    const allRecords = this.store.all();
     const filtered = plan.filter(entry => {
       const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
       const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
@@ -300,6 +321,15 @@ class App {
       const { item } = entry;
       const isOverdue = item.dueDate < new Date().toISOString().split('T')[0] && item.status !== "done";
       
+      let blockWarning = "";
+      if (item.dependsOn) {
+        const depId = Array.isArray(item.dependsOn) ? item.dependsOn[0] : item.dependsOn;
+        const depItem = allRecords.find(r => r.id === depId);
+        if (depItem && depItem.status !== "done") {
+          blockWarning = `<div class="badge blocked-badge">Blocked by: ${depItem.title}</div>`;
+        }
+      }
+
       return `
         <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''}">
           <div>
@@ -307,6 +337,7 @@ class App {
             <div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>
             <div class="badge">${item.category}</div>
             ${item.isCritical ? '<div class="badge critical-badge">Critical</div>' : ''}
+            ${blockWarning}
             <h3 onclick="window.dispatchEvent(new CustomEvent('edit-task', {detail: '${item.id}'}))">${item.title}</h3>
             <div class="reasons">${entry.reasons.join(", ")}</div>
             <div class="editable-notes" contenteditable="true" onblur="window.dispatchEvent(new CustomEvent('update-note', {detail: {id: '${item.id}', note: this.innerText}}))">${item.notes}</div>

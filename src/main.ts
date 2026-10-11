@@ -91,6 +91,25 @@ class App {
     this.store.upsert({ ...record, status: next, updatedAt: new Date().toISOString() });
   }
 
+  private handleBulkComplete() {
+    const records = this.store.all();
+    const today = new Date().toISOString().split('T')[0];
+    const plan = buildPlan(records, today);
+    const filtered = plan.filter(entry => {
+      const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
+      const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
+                          entry.item.notes.toLowerCase().includes(this.searchQuery);
+      return matchCat && matchSearch;
+    });
+
+    if (filtered.length === 0) return;
+    if (confirm(`Mark ${filtered.length} tasks as done?`)) {
+      filtered.forEach(entry => {
+        this.store.upsert({ ...entry.item, status: "done", updatedAt: new Date().toISOString() });
+      });
+    }
+  }
+
   private handleEdit(id: string) {
     const record = this.store.all().find(r => r.id === id);
     if (!record) return;
@@ -305,7 +324,10 @@ class App {
         <main class="panel">
           <div class="panel-title">
             <h2>${theme.product} Plan</h2>
-            <button class="ghost danger" id="btn-clear-done">Clear Done</button>
+            <div class="panel-actions" style="display: flex; gap: 0.5rem">
+              <button class="ghost" id="btn-bulk-done">Complete Filtered</button>
+              <button class="ghost danger" id="btn-clear-done">Clear Done</button>
+            </div>
           </div>
 
           <div class="filter-group">
@@ -343,6 +365,7 @@ class App {
     document.getElementById("btn-export-json")?.addEventListener("click", () => download("backup.json", exportJson(records), "application/json"));
     document.getElementById("btn-export-csv")?.addEventListener("click", () => download("backup.csv", exportCsv(records), "text/csv"));
     document.getElementById("btn-clear-done")?.addEventListener("click", () => this.handleBatchRemove());
+    document.getElementById("btn-bulk-done")?.addEventListener("click", () => this.handleBulkComplete());
     document.getElementById("search-input")?.addEventListener("input", (e) => this.handleSearch(e));
     document.getElementById("filter-cat")?.addEventListener("change", (e) => this.handleFilter(e));
     
@@ -372,7 +395,7 @@ class App {
       return matchCat && matchSearch;
     });
 
-    if (filtered.length === 0) return `<div class="empty">No tasks found matching your criteria.</div>`;
+    if (filtered.length === 0) return `<div class="empty">No tasks found matching your criteria. Try adjusting your search or category filter.</div>`;
 
     return filtered.map(entry => {
       const { item } = entry;

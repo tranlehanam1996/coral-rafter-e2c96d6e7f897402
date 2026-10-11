@@ -10,6 +10,7 @@ class App {
   private store: RecordStore;
   private searchQuery = "";
   private filterCategory = "All";
+  private filterProject = "All";
 
   constructor() {
     this.store = new RecordStore("departure-canvas-v1", this.getSeeds());
@@ -41,6 +42,7 @@ class App {
     const noteEl = document.getElementById("task-note") as HTMLTextAreaElement;
     const critEl = document.getElementById("task-crit") as HTMLInputElement;
     const depEl = document.getElementById("task-dep") as HTMLSelectElement;
+    const projEl = document.getElementById("task-proj") as HTMLInputElement;
 
     if (!titleEl.value.trim()) return;
 
@@ -63,11 +65,13 @@ class App {
       updatedAt: new Date().toISOString(),
       isCritical: critEl?.checked || false,
       dependsOn,
+      project: projEl?.value.trim() || undefined,
     };
 
     this.store.upsert(record);
     titleEl.value = "";
     noteEl.value = "";
+    if (projEl) projEl.value = "";
   }
 
   private handleSearch(e: Event) {
@@ -76,7 +80,9 @@ class App {
   }
 
   private handleFilter(e: Event) {
-    this.filterCategory = (e.target as HTMLSelectElement).value;
+    const target = e.target as HTMLSelectElement;
+    if (target.id === "filter-cat") this.filterCategory = target.value;
+    if (target.id === "filter-proj") this.filterProject = target.value;
     this.render();
   }
 
@@ -97,9 +103,10 @@ class App {
     const plan = buildPlan(records, today);
     const filtered = plan.filter(entry => {
       const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
+      const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
       const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
                           entry.item.notes.toLowerCase().includes(this.searchQuery);
-      return matchCat && matchSearch;
+      return matchCat && matchProj && matchSearch;
     });
 
     if (filtered.length === 0) return;
@@ -145,6 +152,10 @@ class App {
             <label>${theme.impactLabel}</label>
             <input type="number" id="edit-imp" value="${record.impact}" min="1" max="5">
           </div>
+        </div>
+        <div class="field">
+          <label>Project</label>
+          <input id="edit-proj" value="${record.project || ''}">
         </div>
         <div class="field">
           <label>Notes</label>
@@ -200,6 +211,7 @@ class App {
       const dueDate = (document.getElementById("edit-date") as HTMLInputElement).value;
       const effort = parseInt((document.getElementById("edit-eff") as HTMLInputElement).value) || 30;
       const impact = parseInt((document.getElementById("edit-imp") as HTMLInputElement).value) || 3;
+      const project = (document.getElementById("edit-proj") as HTMLInputElement).value.trim() || undefined;
       
       this.store.upsert({ 
         ...record, 
@@ -211,6 +223,7 @@ class App {
         dueDate, 
         effort, 
         impact, 
+        project,
         updatedAt: new Date().toISOString() 
       });
       document.body.removeChild(modal);
@@ -239,11 +252,14 @@ class App {
     const plan = buildPlan(records, today);
     const summary = summarize(records, today);
     
+    const projects = Array.from(new Set(records.map(r => r.project).filter(Boolean))) as string[];
+
     const filteredForOutlook = records.filter(r => {
       const matchCat = this.filterCategory === "All" || r.category === this.filterCategory;
+      const matchProj = this.filterProject === "All" || r.project === this.filterProject;
       const matchSearch = r.title.toLowerCase().includes(this.searchQuery) || 
                           r.notes.toLowerCase().includes(this.searchQuery);
-      return matchCat && matchSearch;
+      return matchCat && matchProj && matchSearch;
     });
     const week = suggestDailyLoad(filteredForOutlook, 240, today);
 
@@ -300,6 +316,10 @@ class App {
             </div>
           </div>
           <div class="field">
+            <label>Project</label>
+            <input id="task-proj" placeholder="e.g. Japan 2025">
+          </div>
+          <div class="field">
             <label>Depends On</label>
             <select id="task-dep">
               <option value="">None</option>
@@ -343,6 +363,10 @@ class App {
               <option value="All">All Categories</option>
               ${theme.categories.map(c => `<option value="${c}" ${this.filterCategory === c ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
+            <select id="filter-proj">
+              <option value="All">All Projects</option>
+              ${projects.map(p => `<option value="${p}" ${this.filterProject === p ? 'selected' : ''}>${p}</option>`).join('')}
+            </select>
           </div>
 
           <div class="task-list">
@@ -375,6 +399,7 @@ class App {
     document.getElementById("btn-bulk-done")?.addEventListener("click", () => this.handleBulkComplete());
     document.getElementById("search-input")?.addEventListener("input", (e) => this.handleSearch(e));
     document.getElementById("filter-cat")?.addEventListener("change", (e) => this.handleFilter(e));
+    document.getElementById("filter-proj")?.addEventListener("change", (e) => this.handleFilter(e));
     
     const fileInput = document.getElementById("import-file") as HTMLInputElement;
     fileInput?.addEventListener("change", (e) => {
@@ -397,9 +422,10 @@ class App {
     const allRecords = this.store.all();
     const filtered = plan.filter(entry => {
       const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
+      const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
       const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
                           entry.item.notes.toLowerCase().includes(this.searchQuery);
-      return matchCat && matchSearch;
+      return matchCat && matchProj && matchSearch;
     });
 
     if (filtered.length === 0) return `<div class="empty">No tasks found matching your criteria. Try adjusting your search or category filter.</div>`;
@@ -431,6 +457,7 @@ class App {
             <div class="badge ${item.status === 'active' ? 'active-badge' : ''}">${item.status}</div>
             <div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>
             <div class="badge">${item.category}</div>
+            ${item.project ? `<div class="badge" style="background: #dcfce7; color: #166534">${item.project}</div>` : ''}
             ${item.isCritical ? '<div class="badge critical-badge">Critical</div>' : ''}
             ${blockWarning}
             <h3 onclick="window.dispatchEvent(new CustomEvent('edit-task', {detail: '${item.id}'}))">${item.title}</h3>

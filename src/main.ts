@@ -409,21 +409,24 @@ class App {
       const isOverdue = item.dueDate < new Date().toISOString().split('T')[0] && item.status !== "done";
       
       let blockWarning = "";
+      let isBlocked = false;
       if (item.dependsOn) {
         const depId = Array.isArray(item.dependsOn) ? item.dependsOn[0] : item.dependsOn;
         const depItem = allRecords.find(r => r.id === depId);
         if (depItem && depItem.status !== "done") {
           blockWarning = `<div class="badge blocked-badge">Blocked by: ${depItem.title}</div>`;
+          isBlocked = true;
         }
       }
 
       const isCircular = hasCircularDependency(item, allRecords);
       if (isCircular) {
         blockWarning = `<div class="badge blocked-badge" style="background: #fecaca; color: #991b1b">Circular Dependency!</div>`;
+        isBlocked = true;
       }
 
       return `
-        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''}">
+        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''}">
           <div>
             <div class="badge ${item.status === 'active' ? 'active-badge' : ''}">${item.status}</div>
             <div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>

@@ -238,7 +238,14 @@ class App {
     const today = new Date().toISOString().split('T')[0];
     const plan = buildPlan(records, today);
     const summary = summarize(records, today);
-    const week = suggestDailyLoad(records, 240, today);
+    
+    const filteredForOutlook = records.filter(r => {
+      const matchCat = this.filterCategory === "All" || r.category === this.filterCategory;
+      const matchSearch = r.title.toLowerCase().includes(this.searchQuery) || 
+                          r.notes.toLowerCase().includes(this.searchQuery);
+      return matchCat && matchSearch;
+    });
+    const week = suggestDailyLoad(filteredForOutlook, 240, today);
 
     root.innerHTML = `
       <header class="hero">
@@ -343,7 +350,7 @@ class App {
           </div>
 
           <div class="week-panel">
-            <h3>Suggested 7-Day Outlook</h3>
+            <h3 style="margin-bottom: 0.5rem">Suggested 7-Day Outlook</h3>
             <div class="week">
               ${week.map((day, i) => `
                 <div class="day ${day.overloaded ? 'over' : ''}">

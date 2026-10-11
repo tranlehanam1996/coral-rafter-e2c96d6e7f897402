@@ -243,6 +243,12 @@ class App {
     if (confirm(`Remove ${doneIds.length} completed tasks?`)) this.store.removeMany(doneIds);
   }
 
+  private handleClearAll() {
+    if (confirm("Are you sure you want to delete ALL tasks? This cannot be undone.")) {
+      this.store.replace([]);
+    }
+  }
+
   private render() {
     const root = document.getElementById("app");
     if (!root) return;
@@ -354,6 +360,7 @@ class App {
             <div class="panel-actions" style="display: flex; gap: 0.5rem">
               <button class="ghost" id="btn-bulk-done">Complete Filtered</button>
               <button class="ghost danger" id="btn-clear-done">Clear Done</button>
+              <button class="danger" id="btn-clear-all">Clear All</button>
             </div>
           </div>
 
@@ -396,6 +403,7 @@ class App {
     document.getElementById("btn-export-json")?.addEventListener("click", () => download("backup.json", exportJson(records), "application/json"));
     document.getElementById("btn-export-csv")?.addEventListener("click", () => download("backup.csv", exportCsv(records), "text/csv"));
     document.getElementById("btn-clear-done")?.addEventListener("click", () => this.handleBatchRemove());
+    document.getElementById("btn-clear-all")?.addEventListener("click", () => this.handleClearAll());
     document.getElementById("btn-bulk-done")?.addEventListener("click", () => this.handleBulkComplete());
     document.getElementById("search-input")?.addEventListener("input", (e) => this.handleSearch(e));
     document.getElementById("filter-cat")?.addEventListener("change", (e) => this.handleFilter(e));

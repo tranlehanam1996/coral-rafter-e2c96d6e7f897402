@@ -16,6 +16,21 @@ class App {
     this.store = new RecordStore("departure-canvas-v1", this.getSeeds());
     this.render();
     this.store.subscribe(() => this.render());
+    this.setupKeyboardShortcuts();
+  }
+
+  private setupKeyboardShortcuts() {
+    window.addEventListener("keydown", (e) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "n") {
+          e.preventDefault();
+          (document.getElementById("task-title") as HTMLInputElement)?.focus();
+        }
+        if (e.key === "") return; // Placeholder
+      }
+    });
   }
 
   private getSeeds(): LifeRecord[] {
@@ -231,6 +246,7 @@ class App {
 
     document.getElementById("edit-save")?.addEventListener("click", save);
     document.getElementById("edit-cancel")?.addEventListener("click", () => document.body.removeChild(modal));
+    (document.getElementById("edit-title") as HTMLInputElement)?.focus();
   }
 
   private handleRemove(id: string) {

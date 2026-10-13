@@ -315,6 +315,18 @@ class App {
   }
 
   private stopFocusSession() {
+    if (this.activeTimerTaskId) {
+      const records = this.store.all();
+      const record = records.find(r => r.id === this.activeTimerTaskId);
+      if (record && this.timerSeconds > 0) {
+        const durationMins = Math.floor(this.timerSeconds / 60);
+        const durationSecs = this.timerSeconds % 60;
+        const timeStr = `${durationMins}m ${durationSecs}s`;
+        const updatedNotes = record.notes + (record.notes ? "\n" : "") + `[Focus Session: ${timeStr}]`;
+        this.store.upsert({ ...record, notes: updatedNotes, updatedAt: new Date().toISOString() });
+      }
+    }
+
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;

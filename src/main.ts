@@ -608,7 +608,7 @@ class App {
             ${item.project ? `<div class="badge" style="background: #dcfce7; color: #166534">${item.project}</div>` : ''}
             ${item.isCritical ? '<div class="badge critical-badge">Critical</div>' : ''}
             ${blockWarning}
-            <h3 onclick="window.dispatchEvent(new CustomEvent('edit-task', {detail: '${item.id}'}))">${item.title}</h3>
+            <h3 tabindex="0" role="button" onclick="window.dispatchEvent(new CustomEvent('edit-task', {detail: '${item.id}'}))" onkeydown="if(event.key==='Enter') window.dispatchEvent(new CustomEvent('edit-task', {detail: '${item.id}'}))">${item.title}</h3>
             <div class="reasons">${entry.reasons.join(", ")}</div>
             <div class="editable-notes" contenteditable="true" onblur="window.dispatchEvent(new CustomEvent('update-note', {detail: {id: '${item.id}', note: this.innerText}}))">${item.notes}</div>
           </div>

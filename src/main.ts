@@ -163,9 +163,15 @@ class App {
     const allRecords = this.store.all().filter(r => r.id !== id);
     const modal = document.createElement("div");
     modal.className = "modal-overlay";
+    
+    const currentDeps = Array.isArray(record.dependsOn) ? record.dependsOn : (record.dependsOn ? [record.dependsOn] : []);
+
     modal.innerHTML = `
       <div class="modal">
-        <h2>Edit Task</h2>
+        <h2 style="display:flex; justify-content:space-between; align-items:center">
+          Edit Task
+          <button class="ghost" style="font-size:1.5rem; padding:0; width:auto" id="edit-close">✕</button>
+        </h2>
         <div class="field">
           <label>Title</label>
           <input id="edit-title" value="${record.title}">
@@ -201,10 +207,9 @@ class App {
           <textarea id="edit-notes">${record.notes}</textarea>
         </div>
         <div class="field">
-          <label>Depends On</label>
-          <select id="edit-dep">
-            <option value="">None</option>
-            ${allRecords.map(r => `<option value="${r.id}" ${record.dependsOn === r.id ? 'selected' : ''}>${r.title}</option>`).join('')}
+          <label>Depends On (Hold Ctrl/Cmd to select multiple)</label>
+          <select id="edit-dep" multiple style="height: 100px">
+            ${allRecords.map(r => `<option value="${r.id}" ${currentDeps.includes(r.id) ? 'selected' : ''}>${r.title}</option>`).join('')}
           </select>
         </div>
         <div id="circular-warning" style="color: #b91c1c; font-size: .8rem; font-weight: 700; margin-bottom: 1rem; display: none">⚠️ This dependency creates a circular reference!</div>
@@ -227,12 +232,12 @@ class App {
     const warnEl = document.getElementById("circular-warning");
     
     const updateCircularWarning = () => {
-      const depId = depSelect.value || undefined;
-      if (!depId) {
+      const selectedDeps = Array.from(depSelect.selectedOptions).map(opt => opt.value);
+      if (selectedDeps.length === 0) {
         if (warnEl) warnEl.style.display = "none";
         return;
       }
-      const potentialRecord = { ...record, dependsOn: depId };
+      const potentialRecord = { ...record, dependsOn: selectedDeps };
       const allWithPotential = [...allRecords, potentialRecord];
       const isCircular = hasCircularDependency(potentialRecord, allWithPotential);
       if (warnEl) warnEl.style.display = isCircular ? "block" : "none";
@@ -245,7 +250,8 @@ class App {
       const title = (document.getElementById("edit-title") as HTMLInputElement).value;
       const notes = (document.getElementById("edit-notes") as HTMLTextAreaElement).value;
       const isCritical = (document.getElementById("edit-critical") as HTMLInputElement).checked;
-      const dependsOn = (document.getElementById("edit-dep") as HTMLSelectElement).value || undefined;
+      const selectedDeps = Array.from(depSelect.selectedOptions).map(opt => opt.value);
+      const dependsOn = selectedDeps.length > 0 ? selectedDeps : undefined;
       const category = (document.getElementById("edit-cat") as HTMLSelectElement).value;
       const dueDate = (document.getElementById("edit-date") as HTMLInputElement).value;
       const effort = parseInt((document.getElementById("edit-eff") as HTMLInputElement).value) || 30;
@@ -270,6 +276,7 @@ class App {
 
     document.getElementById("edit-save")?.addEventListener("click", save);
     document.getElementById("edit-cancel")?.addEventListener("click", () => document.body.removeChild(modal));
+    document.getElementById("edit-close")?.addEventListener("click", () => document.body.removeChild(modal));
     (document.getElementById("edit-title") as HTMLInputElement)?.focus();
   }
 
@@ -577,10 +584,10 @@ class App {
       let blockWarning = "";
       let isBlocked = false;
       if (item.dependsOn && item.status !== "archived") {
-        const depId = Array.isArray(item.dependsOn) ? item.dependsOn[0] : item.dependsOn;
-        const depItem = allRecords.find(r => r.id === depId);
-        if (depItem && depItem.status !== "done") {
-          blockWarning = `<div class="badge blocked-badge">Blocked by: ${depItem.title}</div>`;
+        const depIds = Array.isArray(item.dependsOn) ? item.dependsOn : [item.dependsOn];
+        const blocking = depIds.map(id => allRecords.find(r => r.id === id)).filter(r => r && r.status !== "done");
+        if (blocking.length > 0) {
+          blockWarning = `<div class="badge blocked-badge">Blocked by: ${blocking.map(b => b!.title).join(", ")}</div>`;
           isBlocked = true;
         }
       }

@@ -11,6 +11,7 @@ class App {
   private searchQuery = "";
   private filterCategory = "All";
   private filterProject = "All";
+  private showArchived = false;
   
   private timerInterval: number | null = null;
   private timerSeconds = 0;
@@ -101,6 +102,7 @@ class App {
     const target = e.target as HTMLSelectElement;
     if (target.id === "filter-cat") this.filterCategory = target.value;
     if (target.id === "filter-proj") this.filterProject = target.value;
+    if (target.id === "filter-archived") this.showArchived = target.value === "true";
     this.render();
   }
 
@@ -113,6 +115,13 @@ class App {
     const next = statuses[(statuses.indexOf(record.status) + 1) % statuses.length];
     
     this.store.upsert({ ...record, status: next, updatedAt: new Date().toISOString() });
+  }
+
+  private handleArchive(id: string) {
+    const records = this.store.all();
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+    this.store.upsert({ ...record, status: "archived", updatedAt: new Date().toISOString() });
   }
 
   private handleBulkComplete() {
@@ -436,6 +445,10 @@ class App {
               <option value="All">All Projects</option>
               ${projects.map(p => `<option value="${p}" ${this.filterProject === p ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
+            <select id="filter-archived">
+              <option value="false" ${!this.showArchived ? 'selected' : ''}>Active Only</option>
+              <option value="true" ${this.showArchived ? 'selected' : ''}>Include Archived</option>
+            </select>
           </div>
 
           <div class="task-list">
@@ -470,6 +483,7 @@ class App {
     document.getElementById("search-input")?.addEventListener("input", (e) => this.handleSearch(e));
     document.getElementById("filter-cat")?.addEventListener("change", (e) => this.handleFilter(e));
     document.getElementById("filter-proj")?.addEventListener("change", (e) => this.handleFilter(e));
+    document.getElementById("filter-archived")?.addEventListener("change", (e) => this.handleFilter(e));
     document.getElementById("btn-stop-focus")?.addEventListener("click", () => this.stopFocusSession());
     
     const fileInput = document.getElementById("import-file") as HTMLInputElement;
@@ -499,15 +513,51 @@ class App {
       return matchCat && matchProj && matchSearch;
     });
 
+    if (this.showArchived) {
+      const archived = allRecords.filter(r => r.status === "archived").map(item => ({
+        item,
+        score: 0,
+        reasons: ["Archived"],
+        daysUntilDue: 0
+      }));
+      // Merge archived into the list, but keep them at the bottom
+      // Note: this is a simple merge for the view
+      // In a real app we might want to filter archived by search/cat too
+      const filteredArchived = archived.filter(entry => {
+        const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
+        const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
+        const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
+                            entry.item.notes.toLowerCase().includes(this.searchQuery);
+        return matchCat && matchProj && matchSearch;
+      });
+      // We use a spread to combine them
+      // We'll use a separate render for archived to distinguish them
+      return `
+        <div class="task-list-active">
+          ${this.renderTaskItems(filtered)}
+        </div>
+        <div class="task-list-archived" style="margin-top: 2rem; border-top: 2px dashed #cbdad3; padding-top: 1rem">
+          <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 1rem">Archived Tasks</h3>
+          ${this.renderTaskItems(filteredArchived)}
+        </div>
+      `;
+    }
+
     if (filtered.length === 0) return `<div class="empty">No tasks found matching your criteria. Try adjusting your search or category filter.</div>`;
 
-    return filtered.map(entry => {
+    return this.renderTaskItems(filtered);
+  }
+
+  private renderTaskItems(entries: PlanEntry[]) {
+    if (entries.length === 0) return `<div class="empty">No tasks found.</div>`;
+    const allRecords = this.store.all();
+    return entries.map(entry => {
       const { item } = entry;
-      const isOverdue = item.dueDate < new Date().toISOString().split('T')[0] && item.status !== "done";
+      const isOverdue = item.dueDate < new Date().toISOString().split('T')[0] && item.status !== "done" && item.status !== "archived";
       
       let blockWarning = "";
       let isBlocked = false;
-      if (item.dependsOn) {
+      if (item.dependsOn && item.status !== "archived") {
         const depId = Array.isArray(item.dependsOn) ? item.dependsOn[0] : item.dependsOn;
         const depItem = allRecords.find(r => r.id === depId);
         if (depItem && depItem.status !== "done") {
@@ -523,10 +573,10 @@ class App {
       }
 
       return `
-        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''}">
+        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''} ${item.status === 'archived' ? 'is-archived' : ''}">
           <div>
             <div class="badge ${item.status === 'active' ? 'active-badge' : ''}">${item.status}</div>
-            <div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>
+            ${item.status !== 'archived' ? `<div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>` : ''}
             <div class="badge">${item.category}</div>
             ${item.project ? `<div class="badge" style="background: #dcfce7; color: #166534">${item.project}</div>` : ''}
             ${item.isCritical ? '<div class="badge critical-badge">Critical</div>' : ''}
@@ -537,7 +587,7 @@ class App {
           </div>
           <div class="record-actions">
             <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('toggle-task', {detail: '${item.id}'}))">✓</button>
-            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('focus-task', {detail: '${item.id}'}))">⏱</button>
+            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('archive-task', {detail: '${item.id}'}))">📦</button>
             <button class="danger" onclick="window.dispatchEvent(new CustomEvent('remove-task', {detail: '${item.id}'}))">✕</button>
           </div>
         </div>
@@ -550,6 +600,7 @@ window.addEventListener("toggle-task", (e: any) => (window as any).app?.handleTo
 window.addEventListener("remove-task", (e: any) => (window as any).app?.handleRemove(e.detail));
 window.addEventListener("edit-task", (e: any) => (window as any).app?.handleEdit(e.detail));
 window.addEventListener("focus-task", (e: any) => (window as any).app?.startFocusSession(e.detail));
+window.addEventListener("archive-task", (e: any) => (window as any).app?.handleArchive(e.detail));
 window.addEventListener("update-note", (e: any) => {
   const { id, note } = e.detail;
   const records = (window as any).app?.store.all();

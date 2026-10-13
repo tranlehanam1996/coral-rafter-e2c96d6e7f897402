@@ -21,6 +21,7 @@ label { display: grid; gap: .35rem; color: #526b64; font-size: .82rem; font-weig
 .week-panel { margin-top: 1.2rem; } .week { display: grid; grid-template-columns: repeat(7,1fr); gap: .65rem; } .day { padding: .8rem; border-radius: .7rem; background: #edf6f2; } .day span,.day small { display: block; } .day strong { display: block; margin: .35rem 0; }
 .day-tasks { margin: .5rem 0; font-size: .7rem; color: #668078; max-height: 100px; overflow-y: auto; }
 .day-task { padding: .1rem 0; border-bottom: 1px solid #dce7e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-task.is-critical-outlook { color: #176b55; font-weight: 700; border-bottom-color: #176b55; }
 .day.over { background: #fff0e3; color: #863f19; border: 1px solid #fba97a; } .overload-text { color: #a33232; font-weight: 800; }
 .empty { color: #70877f; padding: 2rem; text-align: center; }
 .filter-group { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }

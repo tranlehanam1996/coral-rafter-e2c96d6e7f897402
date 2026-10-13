@@ -341,7 +341,7 @@ class App {
             <span>Focusing on: <strong>${records.find(r => r.id === this.activeTimerTaskId)?.title}</strong></span>
             <span class="timer-display">${this.formatTimer(this.timerSeconds)}</span>
           </div>
-          <button class="ghost」" id="btn-stop-focus">Stop Session</button>
+          <button class="ghost" id="btn-stop-focus">Stop Session</button>
         </div>
       ` : ''}
 
@@ -450,7 +450,7 @@ class App {
                   <small>Day ${i + 1}</small>
                   <strong>${day.effort}m</strong>
                   <div class="day-tasks">
-                    ${day.tasks.map(t => `<div class="day-task">${t.title}</div>`).join('')}
+                    ${day.tasks.map(t => `<div class="day-task ${t.isCritical ? 'is-critical-outlook' : ''}">${t.isCritical ? '★ ' : ''}${t.title}</div>`).join('')}
                   </div>
                   ${day.overloaded ? '<div class="overload-text">Overload!</div>' : ''}
                 </div>

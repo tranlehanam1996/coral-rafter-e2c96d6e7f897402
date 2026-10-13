@@ -81,7 +81,8 @@ class App {
     const relative = parseRelativeDate(dueDate);
     if (relative) dueDate = relative;
 
-    const dependsOn = depEl?.value && depEl.value !== "" ? depEl.value : undefined;
+    const selectedDeps = depEl ? Array.from(depEl.selectedOptions).map(opt => opt.value) : [];
+    const dependsOn = selectedDeps.length > 0 ? selectedDeps : undefined;
 
     const record: LifeRecord = {
       id: crypto.randomUUID(),
@@ -416,8 +417,8 @@ class App {
             <input id="task-proj" placeholder="e.g. Japan 2025">
           </div>
           <div class="field">
-            <label>Depends On</label>
-            <select id="task-dep">
+            <label>Depends On (Hold Ctrl/Cmd to select multiple)</label>
+            <select id="task-dep" multiple style="height: 100px">
               <option value="">None</option>
               ${records.map(r => `<option value="${r.id}">${r.title}</option>`).join('')}
             </select>

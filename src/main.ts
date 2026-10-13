@@ -52,6 +52,18 @@ class App {
     }));
   }
 
+  private handleTemplate(title: string, category: string, effort: number) {
+    const titleEl = document.getElementById("task-title") as HTMLInputElement;
+    const catEl = document.getElementById("task-cat") as HTMLSelectElement;
+    const effEl = document.getElementById("task-eff") as HTMLInputElement;
+    
+    if (titleEl) titleEl.value = title;
+    if (catEl) catEl.value = category;
+    if (effEl) effEl.value = effort.toString();
+    
+    titleEl?.focus();
+  }
+
   private handleAdd() {
     const titleEl = document.getElementById("task-title") as HTMLInputElement;
     const catEl = document.getElementById("task-cat") as HTMLSelectElement;
@@ -415,6 +427,16 @@ class App {
           </div>
           <button id="btn-add" style="width:100%">Create Task</button>
           
+          <div style="margin-top: 1.5rem; border-top: 1px solid #dce7e1; padding-top: 1rem">
+            <label style="margin-bottom: 0.5rem">Quick templates</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem">
+              <button class="ghost" style="font-size: 0.7rem; padding: 0.4rem 0.6rem" onclick="window.dispatchEvent(new CustomEvent('tpl', {detail: {t: 'Check Passport', c: 'Documents', e: 10}}))">Passport</button>
+              <button class="ghost" style="font-size: 0.7rem; padding: 0.4rem 0.6rem" onclick="window.dispatchEvent(new CustomEvent('tpl', {detail: {t: 'Pack Toiletry Bag', c: 'Packing', e: 20}}))">Packing</button>
+              <button class="ghost" style="font-size: 0.7rem; padding: 0.4rem 0.6rem" onclick="window.dispatchEvent(new CustomEvent('tpl', {detail: {t: 'Book Transit', c: 'Transport', e: 30}}))">Transit</button>
+              <button class="ghost" style="font-size: 0.7rem; padding: 0.4rem 0.6rem" onclick="window.dispatchEvent(new CustomEvent('tpl', {detail: {t: 'Health Insurance', c: 'Health', e: 45}}))">Health</button>
+            </div>
+          </div>
+
           <div class="exchange">
             <button class="ghost" id="btn-export-json">JSON</button>
             <button class="ghost" id="btn-export-csv">CSV</button>
@@ -520,9 +542,7 @@ class App {
         reasons: ["Archived"],
         daysUntilDue: 0
       }));
-      // Merge archived into the list, but keep them at the bottom
-      // Note: this is a simple merge for the view
-      // In a real app we might want to filter archived by search/cat too
+      
       const filteredArchived = archived.filter(entry => {
         const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
         const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
@@ -530,8 +550,7 @@ class App {
                             entry.item.notes.toLowerCase().includes(this.searchQuery);
         return matchCat && matchProj && matchSearch;
       });
-      // We use a spread to combine them
-      // We'll use a separate render for archived to distinguish them
+      
       return `
         <div class="task-list-active">
           ${this.renderTaskItems(filtered)}
@@ -601,6 +620,7 @@ window.addEventListener("remove-task", (e: any) => (window as any).app?.handleRe
 window.addEventListener("edit-task", (e: any) => (window as any).app?.handleEdit(e.detail));
 window.addEventListener("focus-task", (e: any) => (window as any).app?.startFocusSession(e.detail));
 window.addEventListener("archive-task", (e: any) => (window as any).app?.handleArchive(e.detail));
+window.addEventListener("tpl", (e: any) => (window as any).app?.handleTemplate(e.detail.t, e.detail.c, e.detail.e));
 window.addEventListener("update-note", (e: any) => {
   const { id, note } = e.detail;
   const records = (window as any).app?.store.all();

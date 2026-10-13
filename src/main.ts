@@ -611,8 +611,10 @@ class App {
         isBlocked = true;
       }
 
+      const isActiveTask = this.activeTimerTaskId === item.id;
+
       return `
-        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''} ${item.status === 'archived' ? 'is-archived' : ''}">
+        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isActiveTask ? 'is-focusing' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''} ${item.status === 'archived' ? 'is-archived' : ''}">
           <div>
             <div class="badge ${item.status === 'active' ? 'active-badge' : ''}">${item.status}</div>
             ${item.status !== 'archived' ? `<div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>` : ''}
@@ -625,6 +627,7 @@ class App {
             <div class="editable-notes" contenteditable="true" onblur="window.dispatchEvent(new CustomEvent('update-note', {detail: {id: '${item.id}', note: this.innerText}}))">${item.notes}</div>
           </div>
           <div class="record-actions">
+            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('focus-task', {detail: '${item.id}'}))" title="Focus Session">🎯</button>
             <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('toggle-task', {detail: '${item.id}'}))">✓</button>
             <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('archive-task', {detail: '${item.id}'}))">📦</button>
             <button class="danger" onclick="window.dispatchEvent(new CustomEvent('remove-task', {detail: '${item.id}'}))">✕</button>

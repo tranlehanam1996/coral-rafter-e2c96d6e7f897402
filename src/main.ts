@@ -11,6 +11,10 @@ class App {
   private searchQuery = "";
   private filterCategory = "All";
   private filterProject = "All";
+  
+  private timerInterval: number | null = null;
+  private timerSeconds = 0;
+  private activeTimerTaskId: string | null = null;
 
   constructor() {
     this.store = new RecordStore("departure-canvas-v1", this.getSeeds());
@@ -28,7 +32,6 @@ class App {
           e.preventDefault();
           (document.getElementById("task-title") as HTMLInputElement)?.focus();
         }
-        if (e.key === "") return; // Placeholder
       }
     });
   }
@@ -265,6 +268,39 @@ class App {
     }
   }
 
+  private startFocusSession(id: string) {
+    if (this.timerInterval) this.stopFocusSession();
+    
+    const record = this.store.all().find(r => r.id === id);
+    if (!record) return;
+
+    this.activeTimerTaskId = id;
+    this.timerSeconds = 0;
+    this.timerInterval = window.setInterval(() => {
+      this.timerSeconds++;
+      this.render();
+    }, 1000);
+    
+    this.store.upsert({ ...record, status: "active", updatedAt: new Date().toISOString() });
+    this.render();
+  }
+
+  private stopFocusSession() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    this.activeTimerTaskId = null;
+    this.timerSeconds = 0;
+    this.render();
+  }
+
+  private formatTimer(s: number): string {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
   private render() {
     const root = document.getElementById("app");
     if (!root) return;
@@ -298,6 +334,16 @@ class App {
           <small>${revisionLedger.revision.slice(0, 8)}</small>
         </div>
       </header>
+
+      ${this.activeTimerTaskId ? `
+        <div class="focus-bar">
+          <div class="focus-info">
+            <span>Focusing on: <strong>${records.find(r => r.id === this.activeTimerTaskId)?.title}</strong></span>
+            <span class="timer-display">${this.formatTimer(this.timerSeconds)}</span>
+          </div>
+          <button class="ghost」" id="btn-stop-focus">Stop Session</button>
+        </div>
+      ` : ''}
 
       <section class="summary">
         <article><span>Total</span><strong>${summary.total}</strong></article>
@@ -424,6 +470,7 @@ class App {
     document.getElementById("search-input")?.addEventListener("input", (e) => this.handleSearch(e));
     document.getElementById("filter-cat")?.addEventListener("change", (e) => this.handleFilter(e));
     document.getElementById("filter-proj")?.addEventListener("change", (e) => this.handleFilter(e));
+    document.getElementById("btn-stop-focus")?.addEventListener("click", () => this.stopFocusSession());
     
     const fileInput = document.getElementById("import-file") as HTMLInputElement;
     fileInput?.addEventListener("change", (e) => {
@@ -490,6 +537,7 @@ class App {
           </div>
           <div class="record-actions">
             <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('toggle-task', {detail: '${item.id}'}))">✓</button>
+            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('focus-task', {detail: '${item.id}'}))">⏱</button>
             <button class="danger" onclick="window.dispatchEvent(new CustomEvent('remove-task', {detail: '${item.id}'}))">✕</button>
           </div>
         </div>
@@ -501,6 +549,7 @@ class App {
 window.addEventListener("toggle-task", (e: any) => (window as any).app?.handleToggleStatus(e.detail));
 window.addEventListener("remove-task", (e: any) => (window as any).app?.handleRemove(e.detail));
 window.addEventListener("edit-task", (e: any) => (window as any).app?.handleEdit(e.detail));
+window.addEventListener("focus-task", (e: any) => (window as any).app?.startFocusSession(e.detail));
 window.addEventListener("update-note", (e: any) => {
   const { id, note } = e.detail;
   const records = (window as any).app?.store.all();

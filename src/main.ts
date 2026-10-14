@@ -311,6 +311,12 @@ class App {
     if (confirm(`Remove ${doneIds.length} completed tasks?`)) this.store.removeMany(doneIds);
   }
 
+  private handleBatchRemoveArchived() {
+    const archivedIds = this.store.all().filter(r => r.status === "archived").map(r => r.id);
+    if (archivedIds.length === 0) return;
+    if (confirm(`Remove ${archivedIds.length} archived tasks?`)) this.store.removeMany(archivedIds);
+  }
+
   private handleClearAll() {
     if (confirm("Are you sure you want to delete ALL tasks? This cannot be undone.")) {
       this.store.replace([]);
@@ -597,7 +603,10 @@ class App {
     if (completed.length > 0) {
       html += `
         <div class="task-list-completed" style="margin-top: 2rem; border-top: 2px dashed #cbdad3; padding-top: 1rem">
-          <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 1rem">Completed Tasks</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem">
+            <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase">Completed Tasks</h3>
+            <button class="ghost" style="font-size: 0.7rem; padding: 0.3rem 0.6rem" onclick="window.dispatchEvent(new CustomEvent('clear-done'))">Clear Done</button>
+          </div>
           ${this.renderTaskItems(completed)}
         </div>
       `;
@@ -620,7 +629,10 @@ class App {
       if (archived.length > 0) {
         html += `
           <div class="task-list-archived" style="margin-top: 2rem; border-top: 2px dashed #cbdad3; padding-top: 1rem">
-            <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 1rem">Archived Tasks</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem">
+              <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase">Archived Tasks</h3>
+              <button class="ghost" style="font-size: 0.7rem; padding: 0.3rem 0.6rem" onclick="window.dispatchEvent(new CustomEvent('clear-archived'))">Clear Archived</button>
+            </div>
             ${this.renderTaskItems(archived)}
           </div>
         `;
@@ -686,6 +698,8 @@ window.addEventListener("remove-task", (e: any) => (window as any).app?.handleRe
 window.addEventListener("edit-task", (e: any) => (window as any).app?.handleEdit(e.detail));
 window.addEventListener("focus-task", (e: any) => (window as any).app?.startFocusSession(e.detail));
 window.addEventListener("archive-task", (e: any) => (window as any).app?.handleArchive(e.detail));
+window.addEventListener("clear-done", () => (window as any).app?.handleBatchRemove());
+window.addEventListener("clear-archived", () => (window as any).app?.handleBatchRemoveArchived());
 window.addEventListener("tpl", (e: any) => (window as any).app?.handleTemplate(e.detail.t, e.detail.c, e.detail.e));
 window.addEventListener("update-note", (e: any) => {
   const { id, note } = e.detail;

@@ -555,15 +555,41 @@ class App {
       return matchCat && matchProj && matchSearch;
     });
 
+    const completed = allRecords.filter(r => r.status === "done").map(item => ({
+      item,
+      score: 0,
+      reasons: ["Completed"],
+      daysUntilDue: 0
+    })).filter(entry => {
+      const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
+      const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
+      const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
+                          entry.item.notes.toLowerCase().includes(this.searchQuery);
+      return matchCat && matchProj && matchSearch;
+    });
+
+    let html = `
+      <div class="task-list-active">
+        ${filtered.length === 0 ? `<div class="empty">No active tasks found matching your criteria.</div>` : this.renderTaskItems(filtered)}
+      </div>
+    `;
+
+    if (completed.length > 0) {
+      html += `
+        <div class="task-list-completed" style="margin-top: 2rem; border-top: 2px dashed #cbdad3; padding-top: 1rem">
+          <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 1rem">Completed Tasks</h3>
+          ${this.renderTaskItems(completed)}
+        </div>
+      `;
+    }
+
     if (this.showArchived) {
       const archived = allRecords.filter(r => r.status === "archived").map(item => ({
         item,
         score: 0,
         reasons: ["Archived"],
         daysUntilDue: 0
-      }));
-      
-      const filteredArchived = archived.filter(entry => {
+      })).filter(entry => {
         const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
         const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
         const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
@@ -571,20 +597,17 @@ class App {
         return matchCat && matchProj && matchSearch;
       });
       
-      return `
-        <div class="task-list-active">
-          ${this.renderTaskItems(filtered)}
-        </div>
-        <div class="task-list-archived" style="margin-top: 2rem; border-top: 2px dashed #cbdad3; padding-top: 1rem">
-          <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 1rem">Archived Tasks</h3>
-          ${this.renderTaskItems(filteredArchived)}
-        </div>
-      `;
+      if (archived.length > 0) {
+        html += `
+          <div class="task-list-archived" style="margin-top: 2rem; border-top: 2px dashed #cbdad3; padding-top: 1rem">
+            <h3 style="color: #668078; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 1rem">Archived Tasks</h3>
+            ${this.renderTaskItems(archived)}
+          </div>
+        `;
+      }
     }
 
-    if (filtered.length === 0) return `<div class="empty">No tasks found matching your criteria. Try adjusting your search or category filter.</div>`;
-
-    return this.renderTaskItems(filtered);
+    return html;
   }
 
   private renderTaskItems(entries: PlanEntry[]) {
@@ -614,10 +637,10 @@ class App {
       const isActiveTask = this.activeTimerTaskId === item.id;
 
       return `
-        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isActiveTask ? 'is-focusing' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''} ${item.status === 'archived' ? 'is-archived' : ''}">
+        <div class="record ${item.status === 'active' ? 'is-active' : ''} ${isActiveTask ? 'is-focusing' : ''} ${isOverdue ? 'is-overdue' : ''} ${item.impact >= 4 ? 'is-high-impact' : ''} ${item.isCritical ? 'is-critical' : ''} ${isBlocked ? 'is-blocked' : ''} ${item.status === 'archived' ? 'is-archived' : ''} ${item.status === 'done' ? 'is-done' : ''}">
           <div>
             <div class="badge ${item.status === 'active' ? 'active-badge' : ''}">${item.status}</div>
-            ${item.status !== 'archived' ? `<div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>` : ''}
+            ${item.status !== 'archived' && item.status !== 'done' ? `<div class="badge priority-badge">Score: ${entry.score.toFixed(1)}</div>` : ''}
             <div class="badge">${item.category}</div>
             ${item.project ? `<div class="badge" style="background: #dcfce7; color: #166534">${item.project}</div>` : ''}
             ${item.isCritical ? '<div class="badge critical-badge">Critical</div>' : ''}

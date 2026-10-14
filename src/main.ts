@@ -282,9 +282,22 @@ class App {
       document.body.removeChild(modal);
     };
 
+    const cancel = () => {
+      document.body.removeChild(modal);
+    };
+
     document.getElementById("edit-save")?.addEventListener("click", save);
-    document.getElementById("edit-cancel")?.addEventListener("click", () => document.body.removeChild(modal));
-    document.getElementById("edit-close")?.addEventListener("click", () => document.body.removeChild(modal));
+    document.getElementById("edit-cancel")?.addEventListener("click", cancel);
+    document.getElementById("edit-close")?.addEventListener("click", cancel);
+
+    modal.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") cancel();
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        save();
+      }
+    });
+
     (document.getElementById("edit-title") as HTMLInputElement)?.focus();
   }
 

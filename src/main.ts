@@ -192,7 +192,7 @@ class App {
         <div class="form-grid">
           <div class="field">
             <label>${theme.effortLabel}</label>
-            <input type="number" id="edit-eff" value="${record.effort}">
+            <input type="number" id="edit-eff" value="${record.effort}" min="1" max="480">
           </div>
           <div class="field">
             <label>${theme.impactLabel}</label>
@@ -255,8 +255,15 @@ class App {
       const dependsOn = selectedDeps.length > 0 ? selectedDeps : undefined;
       const category = (document.getElementById("edit-cat") as HTMLSelectElement).value;
       const dueDate = (document.getElementById("edit-date") as HTMLInputElement).value;
-      const effort = parseInt((document.getElementById("edit-eff") as HTMLInputElement).value) || 30;
-      const impact = parseInt((document.getElementById("edit-imp") as HTMLInputElement).value) || 3;
+      
+      let effort = parseInt((document.getElementById("edit-eff") as HTMLInputElement).value) || 30;
+      let impact = parseInt((document.getElementById("edit-imp") as HTMLInputElement).value) || 3;
+
+      if (effort < 1) effort = 1;
+      if (effort > 480) effort = 480;
+      if (impact < 1) impact = 1;
+      if (impact > 5) impact = 5;
+
       const project = (document.getElementById("edit-proj") as HTMLInputElement).value.trim() || undefined;
       
       this.store.upsert({ 

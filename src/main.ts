@@ -657,10 +657,10 @@ class App {
             <div class="editable-notes" contenteditable="true" onblur="window.dispatchEvent(new CustomEvent('update-note', {detail: {id: '${item.id}', note: this.innerText}}))">${item.notes}</div>
           </div>
           <div class="record-actions">
-            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('focus-task', {detail: '${item.id}'}))" title="Focus Session">🎯</button>
-            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('toggle-task', {detail: '${item.id}'}))">✓</button>
-            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('archive-task', {detail: '${item.id}'}))">📦</button>
-            <button class="danger" onclick="window.dispatchEvent(new CustomEvent('remove-task', {detail: '${item.id}'}))">✕</button>
+            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('focus-task', {detail: '${item.id}'}))" title="Focus Session" aria-label="Focus Session">🎯</button>
+            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('toggle-task', {detail: '${item.id}'}))" aria-label="Toggle Status">✓</button>
+            <button class="ghost" onclick="window.dispatchEvent(new CustomEvent('archive-task', {detail: '${item.id}'}))" aria-label="Archive Task">📦</button>
+            <button class="danger" onclick="window.dispatchEvent(new CustomEvent('remove-task', {detail: '${item.id}'}))" aria-label="Remove Task">✕</button>
           </div>
         </div>
       `;

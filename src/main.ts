@@ -157,6 +157,26 @@ class App {
     }
   }
 
+  private handleBulkArchive() {
+    const records = this.store.all();
+    const today = new Date().toISOString().split('T')[0];
+    const plan = buildPlan(records, today);
+    const filtered = plan.filter(entry => {
+      const matchCat = this.filterCategory === "All" || entry.item.category === this.filterCategory;
+      const matchProj = this.filterProject === "All" || entry.item.project === this.filterProject;
+      const matchSearch = entry.item.title.toLowerCase().includes(this.searchQuery) || 
+                          entry.item.notes.toLowerCase().includes(this.searchQuery);
+      return matchCat && matchProj && matchSearch;
+    });
+
+    if (filtered.length === 0) return;
+    if (confirm(`Archive ${filtered.length} tasks?`)) {
+      filtered.forEach(entry => {
+        this.store.upsert({ ...entry.item, status: "archived", updatedAt: new Date().toISOString() });
+      });
+    }
+  }
+
   private handleEdit(id: string) {
     const record = this.store.all().find(r => r.id === id);
     if (!record) return;
@@ -498,6 +518,7 @@ class App {
             <h2>${theme.product} Plan</h2>
             <div class="panel-actions" style="display: flex; gap: 0.5rem">
               <button class="ghost" id="btn-bulk-done">Complete Filtered</button>
+              <button class="ghost" id="btn-bulk-archive">Archive Filtered</button>
               <button class="ghost danger" id="btn-clear-done">Clear Done</button>
               <button class="danger" id="btn-clear-all">Clear All</button>
             </div>
@@ -548,6 +569,7 @@ class App {
     document.getElementById("btn-clear-done")?.addEventListener("click", () => this.handleBatchRemove());
     document.getElementById("btn-clear-all")?.addEventListener("click", () => this.handleClearAll());
     document.getElementById("btn-bulk-done")?.addEventListener("click", () => this.handleBulkComplete());
+    document.getElementById("btn-bulk-archive")?.addEventListener("click", () => this.handleBulkArchive());
     document.getElementById("search-input")?.addEventListener("input", (e) => this.handleSearch(e));
     document.getElementById("filter-cat")?.addEventListener("change", (e) => this.handleFilter(e));
     document.getElementById("filter-proj")?.addEventListener("change", (e) => this.handleFilter(e));

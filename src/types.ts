@@ -14,6 +14,7 @@ export interface LifeRecord {
   dependsOn?: string | string[];
   isCritical?: boolean;
   project?: string;
+  tags?: string[];
 }
 
 export interface ThemeConfig {

@@ -63,6 +63,14 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   }
 
   const project = typeof raw.project === "string" ? raw.project.trim() : undefined;
+  
+  let tags: string[] = [];
+  if (Array.isArray(raw.tags)) {
+    if (!raw.tags.every(t => typeof t === "string")) {
+      throw new Error(`Record ${index + 1} has invalid tags array.`);
+    }
+    tags = raw.tags as string[];
+  }
 
   return {
     id: raw.id,
@@ -77,6 +85,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     updatedAt: raw.updatedAt,
     dependsOn,
     project: project || undefined,
+    tags,
   };
 }
 
@@ -95,7 +104,7 @@ export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {
 function csvCell(value: unknown): string { return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`; }
 
 export function exportCsv(records: readonly LifeRecord[]): string {
-  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes", "dependsOn", "project"];
+  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes", "dependsOn", "project", "tags"];
   return [fields.join(","), ...records.map((item) => fields.map((field) => csvCell(item[field])).join(","))].join("\n");
 }
 

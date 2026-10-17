@@ -1,4 +1,5 @@
 export type ItemStatus = "planned" | "active" | "done" | "archived";
+export type PriorityLevel = "low" | "medium" | "high";
 
 export interface LifeRecord {
   id: string;
@@ -15,6 +16,7 @@ export interface LifeRecord {
   isCritical?: boolean;
   project?: string;
   tags?: string[];
+  priority?: PriorityLevel;
 }
 
 export interface ThemeConfig {

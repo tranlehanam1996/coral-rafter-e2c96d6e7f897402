@@ -1,4 +1,4 @@
-import type { LifeRecord } from "../types";
+import type { LifeRecord, ItemStatus, PriorityLevel } from "../types";
 
 interface StoreEnvelope { version: 1; records: LifeRecord[]; savedAt: string }
 type Listener = (records: readonly LifeRecord[]) => void;
@@ -39,6 +39,15 @@ export class RecordStore {
 
   replace(records: LifeRecord[]): void {
     this.records = records.map((item) => ({ ...item }));
+    this.commit();
+  }
+
+  updateMany(ids: string[], updates: Partial<Pick<LifeRecord, "status" | "priority">): void {
+    const idSet = new Set(ids);
+    this.records = this.records.map((item) => {
+      if (!idSet.has(item.id)) return item;
+      return { ...item, ...updates, updatedAt: new Date().toISOString() };
+    });
     this.commit();
   }
 

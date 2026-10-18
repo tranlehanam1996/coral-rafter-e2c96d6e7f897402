@@ -14,6 +14,7 @@ export interface LifeRecord {
   updatedAt: string;
   dependsOn?: string | string[];
   isCritical?: boolean;
+  isBlocked?: boolean;
   project?: string;
   tags?: string[];
   priority?: PriorityLevel;

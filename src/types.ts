@@ -17,6 +17,7 @@ export interface LifeRecord {
   project?: string;
   tags?: string[];
   priority?: PriorityLevel;
+  parentId?: string;
 }
 
 export interface ThemeConfig {

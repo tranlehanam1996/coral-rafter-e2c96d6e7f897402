@@ -22,6 +22,21 @@ function isTimestamp(value: unknown): value is string {
   return parsed.toISOString() === canonical;
 }
 
+function normalizeStringList(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) return undefined;
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of value) {
+    const trimmed = entry.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      result.push(trimmed);
+    }
+  }
+  return result;
+}
+
 function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Record ${index + 1} is not an object.`);
@@ -56,9 +71,11 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   let dependsOn: string | string[] | undefined = undefined;
   if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
     if (typeof raw.dependsOn === "string") {
-      dependsOn = raw.dependsOn;
+      const trimmed = raw.dependsOn.trim();
+      dependsOn = trimmed || undefined;
     } else if (Array.isArray(raw.dependsOn) && raw.dependsOn.every((id) => typeof id === "string")) {
-      dependsOn = raw.dependsOn as string[];
+      const normalized = normalizeStringList(raw.dependsOn);
+      dependsOn = normalized && normalized.length ? normalized : undefined;
     } else {
       throw new Error(`Record ${index + 1} has invalid dependency data.`);
     }
@@ -78,7 +95,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     if (!Array.isArray(raw.tags) || !raw.tags.every((t) => typeof t === "string")) {
       throw new Error(`Record ${index + 1} has invalid tags.`);
     }
-    tags = raw.tags as string[];
+    tags = normalizeStringList(raw.tags) ?? [];
   }
 
   let priority: PriorityLevel | undefined = undefined;
@@ -94,7 +111,8 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     if (typeof raw.parentId !== "string") {
       throw new Error(`Record ${index + 1} has invalid parentId.`);
     }
-    parentId = raw.parentId;
+    const trimmed = raw.parentId.trim();
+    parentId = trimmed || undefined;
   }
 
   let isBlocked: boolean | undefined = undefined;
@@ -125,24 +143,54 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   };
 }
 
+function validateReferences(records: readonly LifeRecord[]): void {
+  const ids = new Set(records.map((record) => record.id));
+  records.forEach((record, index) => {
+    const deps = Array.isArray(record.dependsOn)
+      ? record.dependsOn
+      : record.dependsOn
+        ? [record.dependsOn]
+        : [];
+    for (const dep of deps) {
+      if (!ids.has(dep)) {
+        throw new Error(`Record ${index + 1} references an unknown dependency: ${dep}.`);
+      }
+    }
+    if (record.parentId && !ids.has(record.parentId)) {
+      throw new Error(`Record ${index + 1} references an unknown parent: ${record.parentId}.`);
+    }
+  });
+}
+
 export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {
-  const parsed = JSON.parse(source) as { schema?: unknown; records?: unknown };
-  if (parsed.schema !== 1 || !Array.isArray(parsed.records)) throw new Error("Unsupported backup format.");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    throw new Error("Invalid JSON.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Unsupported backup format.");
+  }
+  const envelope = parsed as { schema?: unknown; records?: unknown };
+  if (envelope.schema !== 1 || !Array.isArray(envelope.records)) throw new Error("Unsupported backup format.");
   const ids = new Set<string>();
-  return parsed.records.map((value, index) => {
+  const records = envelope.records.map((value, index) => {
     const item = decodeRecord(value, index, theme);
     if (ids.has(item.id)) throw new Error(`Record ${index + 1} has a duplicate id.`);
     ids.add(item.id);
     return item;
   });
+  validateReferences(records);
+  return records;
 }
 
 export function parseCsv(source: string): string[][] {
+  const text = source.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const rows: string[][] = [];
   let current: string[] = [];
   let field = "";
   let inQuotes = false;
-  const text = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   let i = 0;
   while (i < text.length) {
     const ch = text[i];
@@ -156,7 +204,7 @@ export function parseCsv(source: string): string[][] {
     if (ch === '"') { inQuotes = true; i++; continue; }
     if (ch === ',') { current.push(field); field = ""; i++; continue; }
     if (ch === '\n') { current.push(field); field = ""; rows.push(current); current = []; i++; continue; }
-    field += ch; i++;
+    field += ch; i++; continue;
   }
   if (field !== "" || current.length > 0) { current.push(field); rows.push(current); }
   return rows.filter((row) => !(row.length === 1 && row[0].trim() === ""));
@@ -223,6 +271,7 @@ export function importCsv(source: string, theme: ThemeConfig): LifeRecord[] {
     ids.add(item.id);
     records.push(item);
   });
+  validateReferences(records);
   return records;
 }
 

@@ -35,13 +35,17 @@ export class RecordStore {
   }
 
   remove(id: string): void {
+    if (!this.records.some((item) => item.id === id)) return;
     this.records = this.records.filter((item) => item.id !== id);
     this.commit();
   }
 
   removeMany(ids: string[]): void {
+    if (!ids.length) return;
     const idSet = new Set(ids);
-    this.records = this.records.filter((item) => !idSet.has(item.id));
+    const next = this.records.filter((item) => !idSet.has(item.id));
+    if (next.length === this.records.length) return;
+    this.records = next;
     this.commit();
   }
 
@@ -51,11 +55,21 @@ export class RecordStore {
   }
 
   updateMany(ids: string[], updates: Partial<Pick<LifeRecord, "status" | "priority">>): void {
+    if (!ids.length) return;
     const idSet = new Set(ids);
+    let changed = false;
     this.records = this.records.map((item) => {
       if (!idSet.has(item.id)) return item;
+      changed = true;
       return { ...cloneRecord(item), ...updates, updatedAt: new Date().toISOString() };
     });
+    if (!changed) return;
+    this.commit();
+  }
+
+  clear(): void {
+    if (!this.records.length) return;
+    this.records = [];
     this.commit();
   }
 
@@ -64,7 +78,7 @@ export class RecordStore {
       const parsed = JSON.parse(localStorage.getItem(this.key) ?? "null") as StoreEnvelope | null;
       if (parsed?.version === 1 && Array.isArray(parsed.records)) return parsed.records.map(cloneRecord);
     } catch {
-      localStorage.removeItem(this.key);
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
     }
     return fallback.map(cloneRecord);
   }

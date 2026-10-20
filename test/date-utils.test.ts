@@ -32,4 +32,22 @@ describe("date utilities", () => {
     const tomorrow = parseRelativeDate("tomorrow")!;
     expect(daysBetween(today, tomorrow)).toBe(1);
   });
+
+  it("resolves yesterday to the previous UTC calendar day", () => {
+    const today = parseRelativeDate("today")!;
+    const yesterday = parseRelativeDate("yesterday")!;
+    expect(daysBetween(yesterday, today)).toBe(1);
+  });
+
+  it("resolves in N days", () => {
+    const today = parseRelativeDate("today")!;
+    const later = parseRelativeDate("in 3 days")!;
+    expect(daysBetween(today, later)).toBe(3);
+  });
+
+  it("resolves in N weeks", () => {
+    const today = parseRelativeDate("today")!;
+    const later = parseRelativeDate("in 2 weeks")!;
+    expect(daysBetween(today, later)).toBe(14);
+  });
 });

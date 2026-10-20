@@ -13,10 +13,33 @@ export function parseRelativeDate(input: string): string | null {
   const normalized = input.toLowerCase().trim();
 
   if (normalized === 'today') return formatIsoDate(now);
+  if (normalized === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(now.getUTCDate() - 1);
+    return formatIsoDate(yesterday);
+  }
   if (normalized === 'tomorrow') {
     const tomorrow = new Date(now);
     tomorrow.setUTCDate(now.getUTCDate() + 1);
     return formatIsoDate(tomorrow);
+  }
+
+  const inDaysMatch = normalized.match(/^in\s+(\d+)\s+days?$/);
+  if (inDaysMatch) {
+    const amount = Number(inDaysMatch[1]);
+    if (!Number.isFinite(amount)) return null;
+    const result = new Date(now);
+    result.setUTCDate(now.getUTCDate() + amount);
+    return formatIsoDate(result);
+  }
+
+  const inWeeksMatch = normalized.match(/^in\s+(\d+)\s+weeks?$/);
+  if (inWeeksMatch) {
+    const amount = Number(inWeeksMatch[1]);
+    if (!Number.isFinite(amount)) return null;
+    const result = new Date(now);
+    result.setUTCDate(now.getUTCDate() + amount * 7);
+    return formatIsoDate(result);
   }
 
   const nextDayMatch = normalized.match(/^next\s+(\w+)$/);

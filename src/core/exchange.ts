@@ -11,6 +11,7 @@ const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high"];
 const CSV_FIELDS: readonly (keyof LifeRecord)[] = [
   "id", "title", "category", "dueDate", "effort", "impact", "status", "notes",
   "dependsOn", "project", "tags", "priority", "parentId", "isBlocked",
+  "createdAt", "updatedAt",
 ];
 
 function isTimestamp(value: unknown): value is string {
@@ -228,11 +229,21 @@ function rowToObject(header: readonly string[], row: readonly string[]): Record<
   const dependsOn = dependsCell === ""
     ? undefined
     : (dependsCell.includes(",") ? dependsCell.split(",").map((s) => s.trim()).filter(Boolean) : dependsCell);
-  const priorityCell = cell("priority").trim();
+  const priorityCell = cell("priority").trim().toLowerCase();
   const projectCell = cell("project").trim();
   const parentCell = cell("parentId").trim();
   const blockedCell = cell("isBlocked").trim();
+  const statusCell = cell("status").trim().toLowerCase();
   const now = new Date().toISOString();
+
+  let isBlocked: boolean | string | undefined = undefined;
+  if (blockedCell !== "") {
+    const lowered = blockedCell.toLowerCase();
+    if (lowered === "true" || lowered === "1" || lowered === "yes") isBlocked = true;
+    else if (lowered === "false" || lowered === "0" || lowered === "no") isBlocked = false;
+    else isBlocked = blockedCell;
+  }
+
   return {
     id: cell("id"),
     title: cell("title"),
@@ -240,14 +251,14 @@ function rowToObject(header: readonly string[], row: readonly string[]): Record<
     dueDate: cell("dueDate"),
     effort: Number(cell("effort")),
     impact: Number(cell("impact")),
-    status: cell("status"),
+    status: statusCell,
     notes: cell("notes"),
     dependsOn,
     project: projectCell === "" ? undefined : projectCell,
     tags,
     priority: priorityCell === "" ? undefined : priorityCell,
     parentId: parentCell === "" ? undefined : parentCell,
-    isBlocked: blockedCell === "" ? undefined : blockedCell === "true",
+    isBlocked,
     createdAt: cell("createdAt").trim() || now,
     updatedAt: cell("updatedAt").trim() || now,
   };

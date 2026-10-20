@@ -18,6 +18,15 @@ describe("CSV exchange", () => {
     expect(imported[0]).toMatchObject({ id: record.id, title: record.title, tags: record.tags, project: record.project });
   });
 
+  it("preserves blocked flag and timestamps through CSV", () => {
+    const record = item({ isBlocked: true });
+    const csv = exportCsv([record]);
+    const imported = importCsv(csv, theme);
+    expect(imported[0].isBlocked).toBe(true);
+    expect(imported[0].createdAt).toBe(record.createdAt);
+    expect(imported[0].updatedAt).toBe(record.updatedAt);
+  });
+
   it("parses quoted fields with commas", () => {
     const csv = 'id,title,category,dueDate,effort,impact,status,notes,dependsOn,project,tags,priority,parentId,isBlocked,createdAt,updatedAt\n"r1","Hello, world",Documents,2026-08-20,10,4,planned,"note, with comma", ,Trip,, , , ,2026-08-01T00:00:00Z,2026-08-01T00:00:00Z';
     const rows = parseCsv(csv);

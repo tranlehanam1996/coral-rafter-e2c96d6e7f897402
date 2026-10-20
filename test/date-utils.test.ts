@@ -20,4 +20,16 @@ describe("date utilities", () => {
     expect(parseRelativeDate("today")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(parseRelativeDate("not a date")).toBeNull();
   });
+
+  it("resolves next weekday to a UTC calendar day matching that weekday", () => {
+    const result = parseRelativeDate("next monday");
+    expect(result).not.toBeNull();
+    expect(new Date(`${result}T00:00:00Z`).getUTCDay()).toBe(1);
+  });
+
+  it("resolves tomorrow to the following UTC calendar day", () => {
+    const today = parseRelativeDate("today")!;
+    const tomorrow = parseRelativeDate("tomorrow")!;
+    expect(daysBetween(today, tomorrow)).toBe(1);
+  });
 });

@@ -11,14 +11,14 @@ export function formatIsoDate(date: Date): string {
 export function parseRelativeDate(input: string): string | null {
   const now = new Date();
   const normalized = input.toLowerCase().trim();
-  
+
   if (normalized === 'today') return formatIsoDate(now);
   if (normalized === 'tomorrow') {
     const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setUTCDate(now.getUTCDate() + 1);
     return formatIsoDate(tomorrow);
   }
-  
+
   const nextDayMatch = normalized.match(/^next\s+(\w+)$/);
   if (nextDayMatch) {
     const dayName = nextDayMatch[1];
@@ -27,15 +27,15 @@ export function parseRelativeDate(input: string): string | null {
     };
     const targetDay = days[dayName as keyof typeof days];
     if (targetDay === undefined) return null;
-    
+
     const result = new Date(now);
-    const currentDay = now.getDay();
+    const currentDay = now.getUTCDay();
     let diff = targetDay - currentDay;
     if (diff <= 0) diff += 7;
-    result.setDate(now.getDate() + diff);
+    result.setUTCDate(now.getUTCDate() + diff);
     return formatIsoDate(result);
   }
-  
+
   return null;
 }
 

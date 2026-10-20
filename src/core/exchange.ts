@@ -47,34 +47,58 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   if (!isTimestamp(raw.createdAt) || !isTimestamp(raw.updatedAt)) {
     throw new Error(`Record ${index + 1} has invalid timestamps.`);
   }
-  
+
   let dependsOn: string | string[] | undefined = undefined;
-  if (typeof raw.dependsOn === "string") {
-    dependsOn = raw.dependsOn;
-  } else if (Array.isArray(raw.dependsOn)) {
-    if (!raw.dependsOn.every(id => typeof id === "string")) {
-      throw new Error(`Record ${index + 1} has invalid dependency array.`);
+  if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
+    if (typeof raw.dependsOn === "string") {
+      dependsOn = raw.dependsOn;
+    } else if (Array.isArray(raw.dependsOn) && raw.dependsOn.every((id) => typeof id === "string")) {
+      dependsOn = raw.dependsOn as string[];
+    } else {
+      throw new Error(`Record ${index + 1} has invalid dependency data.`);
     }
-    dependsOn = raw.dependsOn as string[];
   }
 
-  const project = typeof raw.project === "string" ? raw.project.trim() : undefined;
-  
+  let project: string | undefined = undefined;
+  if (raw.project !== undefined && raw.project !== null) {
+    if (typeof raw.project !== "string") {
+      throw new Error(`Record ${index + 1} has invalid project.`);
+    }
+    const trimmed = raw.project.trim();
+    project = trimmed || undefined;
+  }
+
   let tags: string[] = [];
-  if (Array.isArray(raw.tags)) {
-    if (!raw.tags.every(t => typeof t === "string")) {
-      throw new Error(`Record ${index + 1} has invalid tags array.`);
+  if (raw.tags !== undefined && raw.tags !== null) {
+    if (!Array.isArray(raw.tags) || !raw.tags.every((t) => typeof t === "string")) {
+      throw new Error(`Record ${index + 1} has invalid tags.`);
     }
     tags = raw.tags as string[];
   }
 
   let priority: PriorityLevel | undefined = undefined;
-  if (typeof raw.priority === "string" && PRIORITIES.includes(raw.priority as PriorityLevel)) {
+  if (raw.priority !== undefined && raw.priority !== null) {
+    if (typeof raw.priority !== "string" || !PRIORITIES.includes(raw.priority as PriorityLevel)) {
+      throw new Error(`Record ${index + 1} has invalid priority.`);
+    }
     priority = raw.priority as PriorityLevel;
   }
 
-  const parentId = typeof raw.parentId === "string" ? raw.parentId : undefined;
-  const isBlocked = typeof raw.isBlocked === "boolean" ? raw.isBlocked : undefined;
+  let parentId: string | undefined = undefined;
+  if (raw.parentId !== undefined && raw.parentId !== null) {
+    if (typeof raw.parentId !== "string") {
+      throw new Error(`Record ${index + 1} has invalid parentId.`);
+    }
+    parentId = raw.parentId;
+  }
+
+  let isBlocked: boolean | undefined = undefined;
+  if (raw.isBlocked !== undefined && raw.isBlocked !== null) {
+    if (typeof raw.isBlocked !== "boolean") {
+      throw new Error(`Record ${index + 1} has invalid isBlocked.`);
+    }
+    isBlocked = raw.isBlocked;
+  }
 
   return {
     id: raw.id,
@@ -88,7 +112,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
     dependsOn,
-    project: project || undefined,
+    project,
     tags,
     priority,
     parentId,

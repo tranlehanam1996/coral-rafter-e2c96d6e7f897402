@@ -8,6 +8,11 @@ export function exportJson(records: readonly LifeRecord[]): string {
 const STATUSES: readonly ItemStatus[] = ["planned", "active", "done", "archived"];
 const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high"];
 
+const CSV_FIELDS: readonly (keyof LifeRecord)[] = [
+  "id", "title", "category", "dueDate", "effort", "impact", "status", "notes",
+  "dependsOn", "project", "tags", "priority", "parentId", "isBlocked",
+];
+
 function isTimestamp(value: unknown): value is string {
   if (typeof value !== "string" || value.length > 40 ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
@@ -132,11 +137,93 @@ export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {
   });
 }
 
+export function parseCsv(source: string): string[][] {
+  const rows: string[][] = [];
+  let current: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  const text = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += ch; i++; continue;
+    }
+    if (ch === '"') { inQuotes = true; i++; continue; }
+    if (ch === ',') { current.push(field); field = ""; i++; continue; }
+    if (ch === '\n') { current.push(field); field = ""; rows.push(current); current = []; i++; continue; }
+    field += ch; i++;
+  }
+  if (field !== "" || current.length > 0) { current.push(field); rows.push(current); }
+  return rows.filter((row) => !(row.length === 1 && row[0].trim() === ""));
+}
+
 function csvCell(value: unknown): string { return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`; }
 
 export function exportCsv(records: readonly LifeRecord[]): string {
-  const fields: (keyof LifeRecord)[] = ["id", "title", "category", "dueDate", "effort", "impact", "status", "notes", "dependsOn", "project", "tags", "priority", "parentId", "isBlocked"];
-  return [fields.join(","), ...records.map((item) => fields.map((field) => csvCell(item[field])).join(","))].join("\n");
+  return [CSV_FIELDS.join(","), ...records.map((item) => CSV_FIELDS.map((field) => csvCell(item[field])).join(","))].join("\n");
+}
+
+function rowToObject(header: readonly string[], row: readonly string[]): Record<string, unknown> {
+  const idx = (name: string): number => header.indexOf(name);
+  const cell = (name: string): string => {
+    const i = idx(name);
+    return i >= 0 && i < row.length ? row[i] : "";
+  };
+  const tagsCell = cell("tags").trim();
+  const tags = tagsCell === "" ? [] : tagsCell.split(",").map((s) => s.trim()).filter(Boolean);
+  const dependsCell = cell("dependsOn").trim();
+  const dependsOn = dependsCell === ""
+    ? undefined
+    : (dependsCell.includes(",") ? dependsCell.split(",").map((s) => s.trim()).filter(Boolean) : dependsCell);
+  const priorityCell = cell("priority").trim();
+  const projectCell = cell("project").trim();
+  const parentCell = cell("parentId").trim();
+  const blockedCell = cell("isBlocked").trim();
+  const now = new Date().toISOString();
+  return {
+    id: cell("id"),
+    title: cell("title"),
+    category: cell("category"),
+    dueDate: cell("dueDate"),
+    effort: Number(cell("effort")),
+    impact: Number(cell("impact")),
+    status: cell("status"),
+    notes: cell("notes"),
+    dependsOn,
+    project: projectCell === "" ? undefined : projectCell,
+    tags,
+    priority: priorityCell === "" ? undefined : priorityCell,
+    parentId: parentCell === "" ? undefined : parentCell,
+    isBlocked: blockedCell === "" ? undefined : blockedCell === "true",
+    createdAt: cell("createdAt").trim() || now,
+    updatedAt: cell("updatedAt").trim() || now,
+  };
+}
+
+export function importCsv(source: string, theme: ThemeConfig): LifeRecord[] {
+  const rows = parseCsv(source);
+  if (rows.length < 2) throw new Error("CSV must include a header and at least one record.");
+  const header = rows[0].map((h) => h.trim());
+  const required = ["id", "title", "category", "dueDate", "effort", "impact", "status"];
+  for (const column of required) {
+    if (!header.includes(column)) throw new Error(`Missing required column: ${column}.`);
+  }
+  const ids = new Set<string>();
+  const records: LifeRecord[] = [];
+  rows.slice(1).forEach((row, index) => {
+    if (row.every((cell) => cell.trim() === "")) return;
+    const raw = rowToObject(header, row);
+    const item = decodeRecord(raw, index, theme);
+    if (ids.has(item.id)) throw new Error(`Record ${index + 1} has a duplicate id.`);
+    ids.add(item.id);
+    records.push(item);
+  });
+  return records;
 }
 
 export function download(name: string, contents: string, type: string): void {

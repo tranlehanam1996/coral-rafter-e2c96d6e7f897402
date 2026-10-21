@@ -21,6 +21,10 @@ describe("date utilities", () => {
     expect(parseRelativeDate("not a date")).toBeNull();
   });
 
+  it("returns null for relative dates that overflow the calendar", () => {
+    expect(parseRelativeDate("in 999999999 days")).toBeNull();
+  });
+
   it("resolves next weekday to a UTC calendar day matching that weekday", () => {
     const result = parseRelativeDate("next monday");
     expect(result).not.toBeNull();

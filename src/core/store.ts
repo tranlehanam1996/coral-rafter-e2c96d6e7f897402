@@ -1,7 +1,14 @@
-import type { LifeRecord, ItemStatus, PriorityLevel } from "../types";
+import type { ItemStatus, LifeRecord, PriorityLevel } from "../types";
+import { isCalendarDay } from "./date-utils";
+import { isTimestamp } from "./exchange";
 
 interface StoreEnvelope { version: 1; records: LifeRecord[]; savedAt: string }
 type Listener = (records: readonly LifeRecord[]) => void;
+
+const STATUSES: readonly ItemStatus[] = ["planned", "active", "done", "archived"];
+const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high"];
+const STATUS_SET = new Set<string>(STATUSES);
+const PRIORITY_SET = new Set<string>(PRIORITIES);
 
 function cloneRecord(item: LifeRecord): LifeRecord {
   return {
@@ -9,6 +16,47 @@ function cloneRecord(item: LifeRecord): LifeRecord {
     tags: item.tags ? [...item.tags] : undefined,
     dependsOn: Array.isArray(item.dependsOn) ? [...item.dependsOn] : item.dependsOn,
   };
+}
+
+function isStoredRecord(value: unknown): value is LifeRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+
+  if (typeof raw.id !== "string" || raw.id.length < 1) return false;
+  if (typeof raw.title !== "string" || raw.title.trim().length < 1) return false;
+  if (typeof raw.category !== "string" || raw.category.trim().length < 1) return false;
+  if (!isCalendarDay(raw.dueDate)) return false;
+  if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) return false;
+  if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) return false;
+  if (typeof raw.status !== "string" || !STATUS_SET.has(raw.status)) return false;
+  if (typeof raw.notes !== "string") return false;
+  if (typeof raw.createdAt !== "string" || !isTimestamp(raw.createdAt)) return false;
+  if (typeof raw.updatedAt !== "string" || !isTimestamp(raw.updatedAt)) return false;
+
+  if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
+    if (typeof raw.dependsOn === "string") {
+      if (raw.dependsOn.length < 1) return false;
+    } else if (Array.isArray(raw.dependsOn)) {
+      if (!raw.dependsOn.every((entry) => typeof entry === "string")) return false;
+    } else {
+      return false;
+    }
+  }
+
+  if (raw.project !== undefined && raw.project !== null && typeof raw.project !== "string") return false;
+  if (raw.tags !== undefined && raw.tags !== null) {
+    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string")) return false;
+  }
+  if (raw.priority !== undefined && raw.priority !== null) {
+    if (typeof raw.priority !== "string" || !PRIORITY_SET.has(raw.priority)) return false;
+  }
+  if (raw.parentId !== undefined && raw.parentId !== null) {
+    if (typeof raw.parentId !== "string" || raw.parentId.trim().length < 1) return false;
+  }
+  if (raw.isBlocked !== undefined && raw.isBlocked !== null && typeof raw.isBlocked !== "boolean") return false;
+  if (raw.isCritical !== undefined && raw.isCritical !== null && typeof raw.isCritical !== "boolean") return false;
+
+  return true;
 }
 
 export class RecordStore {
@@ -61,7 +109,10 @@ export class RecordStore {
     this.records = this.records.map((item) => {
       if (!idSet.has(item.id)) return item;
       changed = true;
-      return { ...cloneRecord(item), ...updates, updatedAt: new Date().toISOString() };
+      const patch: Partial<Pick<LifeRecord, "status" | "priority">> = {};
+      if (updates.status !== undefined) patch.status = updates.status;
+      if (updates.priority !== undefined) patch.priority = updates.priority;
+      return { ...cloneRecord(item), ...patch, updatedAt: new Date().toISOString() };
     });
     if (!changed) return;
     this.commit();
@@ -98,8 +149,13 @@ export class RecordStore {
       return fallback.map(cloneRecord);
     }
 
+    if (!envelope.records.every(isStoredRecord)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
     try {
-      return envelope.records.map((record) => cloneRecord(record as LifeRecord));
+      return envelope.records.map((record) => cloneRecord(record));
     } catch {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);

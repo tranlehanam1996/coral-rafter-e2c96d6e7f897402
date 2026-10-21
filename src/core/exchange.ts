@@ -14,7 +14,7 @@ const CSV_FIELDS: readonly (keyof LifeRecord)[] = [
   "createdAt", "updatedAt",
 ];
 
-function isTimestamp(value: unknown): value is string {
+export function isTimestamp(value: unknown): value is string {
   if (typeof value !== "string" || value.length > 40 ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
   const parsed = new Date(value);

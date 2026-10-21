@@ -153,6 +153,25 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   };
 }
 
+function hasDirectedCycle(edges: Map<string, string[]>): boolean {
+  const color = new Map<string, 0 | 1 | 2>();
+  const visit = (node: string): boolean => {
+    const state = color.get(node) ?? 0;
+    if (state === 1) return true;
+    if (state === 2) return false;
+    color.set(node, 1);
+    for (const next of edges.get(node) ?? []) {
+      if (visit(next)) return true;
+    }
+    color.set(node, 2);
+    return false;
+  };
+  for (const node of edges.keys()) {
+    if (visit(node)) return true;
+  }
+  return false;
+}
+
 function validateReferences(records: readonly LifeRecord[]): void {
   const ids = new Set(records.map((record) => record.id));
   records.forEach((record, index) => {
@@ -170,6 +189,24 @@ function validateReferences(records: readonly LifeRecord[]): void {
       throw new Error(`Record ${index + 1} references an unknown parent: ${record.parentId}.`);
     }
   });
+
+  const dependencyEdges = new Map<string, string[]>();
+  const parentEdges = new Map<string, string[]>();
+  for (const record of records) {
+    const deps = Array.isArray(record.dependsOn)
+      ? record.dependsOn
+      : record.dependsOn
+        ? [record.dependsOn]
+        : [];
+    dependencyEdges.set(record.id, deps);
+    parentEdges.set(record.id, record.parentId ? [record.parentId] : []);
+  }
+  if (hasDirectedCycle(dependencyEdges)) {
+    throw new Error("Circular dependency detected.");
+  }
+  if (hasDirectedCycle(parentEdges)) {
+    throw new Error("Circular parent reference detected.");
+  }
 }
 
 export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {

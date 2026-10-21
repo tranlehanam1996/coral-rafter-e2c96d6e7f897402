@@ -81,13 +81,29 @@ export class RecordStore {
       raw = null;
     }
     if (raw === null) return fallback.map(cloneRecord);
+
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(raw) as StoreEnvelope | null;
-      if (parsed?.version === 1 && Array.isArray(parsed.records)) return parsed.records.map(cloneRecord);
+      parsed = JSON.parse(raw);
     } catch {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
     }
-    return fallback.map(cloneRecord);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return fallback.map(cloneRecord);
+    }
+    const envelope = parsed as { version?: unknown; records?: unknown };
+    if (envelope.version !== 1 || !Array.isArray(envelope.records)) {
+      return fallback.map(cloneRecord);
+    }
+
+    try {
+      return envelope.records.map((record) => cloneRecord(record as LifeRecord));
+    } catch {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
   }
 
   private commit(): void {

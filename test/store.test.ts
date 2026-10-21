@@ -58,3 +58,43 @@ describe("record store", () => {
     unsubscribe();
   });
 });
+
+describe("record store no-op updates", () => {
+  beforeEach(() => {
+    const backing: Record<string, string> = {};
+    (globalThis as any).localStorage = {
+      getItem: (key: string) => (Object.prototype.hasOwnProperty.call(backing, key) ? backing[key] : null),
+      setItem: (key: string, value: string) => { backing[key] = value; },
+      removeItem: (key: string) => { delete backing[key]; },
+    };
+  });
+
+  it("does not update timestamps when updateMany receives unchanged values", () => {
+    const store = new RecordStore("k", [rec()]);
+    const before = store.all()[0].updatedAt;
+    store.updateMany(["one"], { status: "planned" });
+    expect(store.all()[0].updatedAt).toBe(before);
+  });
+
+  it("does not notify subscribers when upserting an identical record", () => {
+    const store = new RecordStore("k", []);
+    let notifications = 0;
+    const unsubscribe = store.subscribe(() => { notifications += 1; });
+    expect(notifications).toBe(1);
+    store.upsert(rec());
+    expect(notifications).toBe(2);
+    store.upsert({ ...rec() });
+    expect(notifications).toBe(2);
+    unsubscribe();
+  });
+
+  it("does not notify subscribers when replacing with identical records", () => {
+    const store = new RecordStore("k", [rec()]);
+    let notifications = 0;
+    const unsubscribe = store.subscribe(() => { notifications += 1; });
+    expect(notifications).toBe(1);
+    store.replace([rec()]);
+    expect(notifications).toBe(1);
+    unsubscribe();
+  });
+});

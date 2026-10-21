@@ -18,6 +18,10 @@ function cloneRecord(item: LifeRecord): LifeRecord {
   };
 }
 
+function recordsEqual(a: LifeRecord, b: LifeRecord): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function hasDirectedCycle(edges: Map<string, string[]>): boolean {
   const color = new Map<string, 0 | 1 | 2>();
   const visit = (node: string): boolean => {
@@ -130,8 +134,12 @@ export class RecordStore {
 
   upsert(record: LifeRecord): void {
     const at = this.records.findIndex((item) => item.id === record.id);
-    if (at >= 0) this.records[at] = cloneRecord(record);
-    else this.records.push(cloneRecord(record));
+    if (at >= 0) {
+      if (recordsEqual(this.records[at], record)) return;
+      this.records[at] = cloneRecord(record);
+    } else {
+      this.records.push(cloneRecord(record));
+    }
     this.commit();
   }
 
@@ -151,7 +159,11 @@ export class RecordStore {
   }
 
   replace(records: LifeRecord[]): void {
-    this.records = records.map(cloneRecord);
+    const next = records.map(cloneRecord);
+    if (next.length === this.records.length && next.every((item, index) => recordsEqual(item, this.records[index]))) {
+      return;
+    }
+    this.records = next;
     this.commit();
   }
 
@@ -167,9 +179,16 @@ export class RecordStore {
     this.records = this.records.map((item) => {
       if (!idSet.has(item.id)) return item;
       const patch: Partial<Pick<LifeRecord, "status" | "priority">> = {};
-      if (hasStatus && validStatus !== undefined) patch.status = validStatus;
-      if (hasPriority && validPriority !== undefined) patch.priority = validPriority;
-      if (Object.keys(patch).length === 0) return item;
+      let recordChanged = false;
+      if (hasStatus && validStatus !== undefined && item.status !== validStatus) {
+        patch.status = validStatus;
+        recordChanged = true;
+      }
+      if (hasPriority && validPriority !== undefined && item.priority !== validPriority) {
+        patch.priority = validPriority;
+        recordChanged = true;
+      }
+      if (!recordChanged) return item;
       changed = true;
       return { ...cloneRecord(item), ...patch, updatedAt: new Date().toISOString() };
     });

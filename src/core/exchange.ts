@@ -49,7 +49,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.length > 100) {
     throw new Error(`Record ${index + 1} has an invalid title.`);
   }
-  if (typeof raw.category !== "string" || !theme.categories.includes(raw.category)) {
+  if (typeof raw.category !== "string" || !theme.categories.includes(raw.category.trim())) {
     throw new Error(`Record ${index + 1} has an unknown category.`);
   }
   if (!isCalendarDay(raw.dueDate)) throw new Error(`Record ${index + 1} has an invalid due date.`);
@@ -135,7 +135,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   return {
     id: raw.id,
     title: raw.title.trim(),
-    category: raw.category,
+    category: raw.category.trim(),
     dueDate: raw.dueDate,
     effort: raw.effort,
     impact: raw.impact,
@@ -330,14 +330,16 @@ export function importCsv(source: string, theme: ThemeConfig): LifeRecord[] {
   }
   const ids = new Set<string>();
   const records: LifeRecord[] = [];
-  rows.slice(1).forEach((row, index) => {
-    if (row.every((cell) => cell.trim() === "")) return;
+  let recordIndex = 0;
+  for (const row of rows.slice(1)) {
+    if (row.every((cell) => cell.trim() === "")) continue;
     const raw = rowToObject(header, row);
-    const item = decodeRecord(raw, index, theme);
-    if (ids.has(item.id)) throw new Error(`Record ${index + 1} has a duplicate id.`);
+    const item = decodeRecord(raw, recordIndex, theme);
+    if (ids.has(item.id)) throw new Error(`Record ${recordIndex + 1} has a duplicate id.`);
     ids.add(item.id);
     records.push(item);
-  });
+    recordIndex += 1;
+  }
   validateReferences(records);
   return records;
 }

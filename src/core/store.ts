@@ -18,34 +18,87 @@ function cloneRecord(item: LifeRecord): LifeRecord {
   };
 }
 
+function hasDirectedCycle(edges: Map<string, string[]>): boolean {
+  const color = new Map<string, 0 | 1 | 2>();
+  const visit = (node: string): boolean => {
+    const state = color.get(node) ?? 0;
+    if (state === 1) return true;
+    if (state === 2) return false;
+    color.set(node, 1);
+    for (const next of edges.get(node) ?? []) {
+      if (visit(next)) return true;
+    }
+    color.set(node, 2);
+    return false;
+  };
+  for (const node of edges.keys()) {
+    if (visit(node)) return true;
+  }
+  return false;
+}
+
+function hasValidReferences(records: readonly LifeRecord[]): boolean {
+  const ids = new Set(records.map((record) => record.id));
+  if (ids.size !== records.length) return false;
+
+  for (const record of records) {
+    const deps = Array.isArray(record.dependsOn)
+      ? record.dependsOn
+      : record.dependsOn
+        ? [record.dependsOn]
+        : [];
+    for (const dep of deps) {
+      if (!ids.has(dep)) return false;
+    }
+    if (record.parentId && !ids.has(record.parentId)) return false;
+  }
+
+  const dependencyEdges = new Map<string, string[]>();
+  const parentEdges = new Map<string, string[]>();
+  for (const record of records) {
+    const deps = Array.isArray(record.dependsOn)
+      ? record.dependsOn
+      : record.dependsOn
+        ? [record.dependsOn]
+        : [];
+    dependencyEdges.set(record.id, deps);
+    parentEdges.set(record.id, record.parentId ? [record.parentId] : []);
+  }
+  if (hasDirectedCycle(dependencyEdges)) return false;
+  if (hasDirectedCycle(parentEdges)) return false;
+  return true;
+}
+
 function isStoredRecord(value: unknown): value is LifeRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const raw = value as Record<string, unknown>;
 
-  if (typeof raw.id !== "string" || raw.id.length < 1) return false;
-  if (typeof raw.title !== "string" || raw.title.trim().length < 1) return false;
+  if (typeof raw.id !== "string" || raw.id.length < 1 || raw.id.length > 120) return false;
+  if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.length > 100) return false;
   if (typeof raw.category !== "string" || raw.category.trim().length < 1) return false;
   if (!isCalendarDay(raw.dueDate)) return false;
   if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) return false;
   if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) return false;
   if (typeof raw.status !== "string" || !STATUS_SET.has(raw.status)) return false;
-  if (typeof raw.notes !== "string") return false;
+  if (typeof raw.notes !== "string" || raw.notes.length > 600) return false;
   if (typeof raw.createdAt !== "string" || !isTimestamp(raw.createdAt)) return false;
   if (typeof raw.updatedAt !== "string" || !isTimestamp(raw.updatedAt)) return false;
 
   if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
     if (typeof raw.dependsOn === "string") {
-      if (raw.dependsOn.length < 1) return false;
+      if (raw.dependsOn.trim().length < 1) return false;
     } else if (Array.isArray(raw.dependsOn)) {
-      if (!raw.dependsOn.every((entry) => typeof entry === "string")) return false;
+      if (!raw.dependsOn.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
     } else {
       return false;
     }
   }
 
-  if (raw.project !== undefined && raw.project !== null && typeof raw.project !== "string") return false;
+  if (raw.project !== undefined && raw.project !== null) {
+    if (typeof raw.project !== "string" || raw.project.trim().length < 1) return false;
+  }
   if (raw.tags !== undefined && raw.tags !== null) {
-    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string")) return false;
+    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
   }
   if (raw.priority !== undefined && raw.priority !== null) {
     if (typeof raw.priority !== "string" || !PRIORITY_SET.has(raw.priority)) return false;
@@ -105,13 +158,18 @@ export class RecordStore {
   updateMany(ids: string[], updates: Partial<Pick<LifeRecord, "status" | "priority">>): void {
     if (!ids.length) return;
     const idSet = new Set(ids);
+    const hasStatus = updates.status !== undefined;
+    const hasPriority = updates.priority !== undefined;
+    const validStatus = hasStatus && STATUS_SET.has(updates.status as string) ? updates.status : undefined;
+    const validPriority = hasPriority && PRIORITY_SET.has(updates.priority as string) ? updates.priority : undefined;
+
     let changed = false;
     this.records = this.records.map((item) => {
       if (!idSet.has(item.id)) return item;
       changed = true;
       const patch: Partial<Pick<LifeRecord, "status" | "priority">> = {};
-      if (updates.status !== undefined) patch.status = updates.status;
-      if (updates.priority !== undefined) patch.priority = updates.priority;
+      if (hasStatus && validStatus !== undefined) patch.status = validStatus;
+      if (hasPriority && validPriority !== undefined) patch.priority = validPriority;
       return { ...cloneRecord(item), ...patch, updatedAt: new Date().toISOString() };
     });
     if (!changed) return;
@@ -142,20 +200,23 @@ export class RecordStore {
     }
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);
     }
     const envelope = parsed as { version?: unknown; records?: unknown };
     if (envelope.version !== 1 || !Array.isArray(envelope.records)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);
     }
 
-    if (!envelope.records.every(isStoredRecord)) {
+    const stored = envelope.records;
+    if (!stored.every(isStoredRecord) || !hasValidReferences(stored as LifeRecord[])) {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);
     }
 
     try {
-      return envelope.records.map((record) => cloneRecord(record));
+      return (stored as LifeRecord[]).map((record) => cloneRecord(record));
     } catch {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);

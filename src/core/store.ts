@@ -166,10 +166,11 @@ export class RecordStore {
     let changed = false;
     this.records = this.records.map((item) => {
       if (!idSet.has(item.id)) return item;
-      changed = true;
       const patch: Partial<Pick<LifeRecord, "status" | "priority">> = {};
       if (hasStatus && validStatus !== undefined) patch.status = validStatus;
       if (hasPriority && validPriority !== undefined) patch.priority = validPriority;
+      if (Object.keys(patch).length === 0) return item;
+      changed = true;
       return { ...cloneRecord(item), ...patch, updatedAt: new Date().toISOString() };
     });
     if (!changed) return;

@@ -51,6 +51,11 @@ describe("CSV exchange", () => {
     expect(rows[0][0]).toBe("id");
   });
 
+  it("filters fully blank CSV rows", () => {
+    const rows = parseCsv("id,title\n\n,\n1,Example");
+    expect(rows).toHaveLength(2);
+  });
+
   it("rejects CSV records referencing unknown dependencies", () => {
     const csv = "id,title,category,dueDate,effort,impact,status,dependsOn\n" +
       "r1,Example," + theme.categories[0] + ",2026-08-20,10,4,planned,missing";

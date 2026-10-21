@@ -254,7 +254,7 @@ export function parseCsv(source: string): string[][] {
     field += ch; i++; continue;
   }
   if (field !== "" || current.length > 0) { current.push(field); rows.push(current); }
-  return rows.filter((row) => !(row.length === 1 && row[0].trim() === ""));
+  return rows.filter((row) => !row.every((cell) => cell.trim() === ""));
 }
 
 function csvCell(value: unknown): string { return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`; }

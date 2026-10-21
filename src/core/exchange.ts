@@ -10,7 +10,7 @@ const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high"];
 
 const CSV_FIELDS: readonly (keyof LifeRecord)[] = [
   "id", "title", "category", "dueDate", "effort", "impact", "status", "notes",
-  "dependsOn", "project", "tags", "priority", "parentId", "isBlocked",
+  "dependsOn", "project", "tags", "priority", "parentId", "isBlocked", "isCritical",
   "createdAt", "updatedAt",
 ];
 
@@ -102,7 +102,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   let priority: PriorityLevel | undefined = undefined;
   if (raw.priority !== undefined && raw.priority !== null) {
     if (typeof raw.priority !== "string" || !PRIORITIES.includes(raw.priority as PriorityLevel)) {
-      throw new Error(`Record ${index + 1} has invalid priority.`);
+      throw new Error(`Record ${index + 1} has an invalid priority.`);
     }
     priority = raw.priority as PriorityLevel;
   }
@@ -119,9 +119,17 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   let isBlocked: boolean | undefined = undefined;
   if (raw.isBlocked !== undefined && raw.isBlocked !== null) {
     if (typeof raw.isBlocked !== "boolean") {
-      throw new Error(`Record ${index + 1} has invalid isBlocked.`);
+      throw new Error(`Record ${index + 1} has an invalid isBlocked.`);
     }
     isBlocked = raw.isBlocked;
+  }
+
+  let isCritical: boolean | undefined = undefined;
+  if (raw.isCritical !== undefined && raw.isCritical !== null) {
+    if (typeof raw.isCritical !== "boolean") {
+      throw new Error(`Record ${index + 1} has an invalid isCritical.`);
+    }
+    isCritical = raw.isCritical;
   }
 
   return {
@@ -141,6 +149,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     priority,
     parentId,
     isBlocked,
+    isCritical,
   };
 }
 
@@ -233,6 +242,7 @@ function rowToObject(header: readonly string[], row: readonly string[]): Record<
   const projectCell = cell("project").trim();
   const parentCell = cell("parentId").trim();
   const blockedCell = cell("isBlocked").trim();
+  const criticalCell = cell("isCritical").trim();
   const statusCell = cell("status").trim().toLowerCase();
   const now = new Date().toISOString();
 
@@ -242,6 +252,14 @@ function rowToObject(header: readonly string[], row: readonly string[]): Record<
     if (lowered === "true" || lowered === "1" || lowered === "yes") isBlocked = true;
     else if (lowered === "false" || lowered === "0" || lowered === "no") isBlocked = false;
     else isBlocked = blockedCell;
+  }
+
+  let isCritical: boolean | string | undefined = undefined;
+  if (criticalCell !== "") {
+    const lowered = criticalCell.toLowerCase();
+    if (lowered === "true" || lowered === "1" || lowered === "yes") isCritical = true;
+    else if (lowered === "false" || lowered === "0" || lowered === "no") isCritical = false;
+    else isCritical = criticalCell;
   }
 
   return {
@@ -259,6 +277,7 @@ function rowToObject(header: readonly string[], row: readonly string[]): Record<
     priority: priorityCell === "" ? undefined : priorityCell,
     parentId: parentCell === "" ? undefined : parentCell,
     isBlocked,
+    isCritical,
     createdAt: cell("createdAt").trim() || now,
     updatedAt: cell("updatedAt").trim() || now,
   };

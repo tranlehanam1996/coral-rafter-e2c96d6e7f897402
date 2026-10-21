@@ -74,8 +74,15 @@ export class RecordStore {
   }
 
   private read(fallback: LifeRecord[]): LifeRecord[] {
+    let raw: string | null = null;
     try {
-      const parsed = JSON.parse(localStorage.getItem(this.key) ?? "null") as StoreEnvelope | null;
+      raw = localStorage.getItem(this.key);
+    } catch {
+      raw = null;
+    }
+    if (raw === null) return fallback.map(cloneRecord);
+    try {
+      const parsed = JSON.parse(raw) as StoreEnvelope | null;
       if (parsed?.version === 1 && Array.isArray(parsed.records)) return parsed.records.map(cloneRecord);
     } catch {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
@@ -85,7 +92,11 @@ export class RecordStore {
 
   private commit(): void {
     const envelope: StoreEnvelope = { version: 1, records: this.records.map(cloneRecord), savedAt: new Date().toISOString() };
-    localStorage.setItem(this.key, JSON.stringify(envelope));
+    try {
+      localStorage.setItem(this.key, JSON.stringify(envelope));
+    } catch {
+      // Keep the in-memory state usable when persistence is unavailable.
+    }
     for (const listener of this.listeners) listener(this.all());
   }
 }

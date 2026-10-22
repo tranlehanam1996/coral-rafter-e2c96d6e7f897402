@@ -14,7 +14,12 @@ function cloneRecord(item: LifeRecord): LifeRecord {
   return {
     ...item,
     tags: item.tags ? [...item.tags] : undefined,
-    dependsOn: Array.isArray(item.dependsOn) ? [...item.dependsOn] : item.dependsOn,
+    dependsOn: Array.isArray(item.dependsOn) ? [...item.dependsOn] : (item.dependsOn ?? undefined),
+    project: item.project ?? undefined,
+    priority: item.priority ?? undefined,
+    parentId: item.parentId ?? undefined,
+    isBlocked: item.isBlocked ?? undefined,
+    isCritical: item.isCritical ?? undefined,
   };
 }
 

@@ -11,13 +11,22 @@ const STATUS_SET = new Set<string>(STATUSES);
 const PRIORITY_SET = new Set<string>(PRIORITIES);
 
 function cloneRecord(item: LifeRecord): LifeRecord {
+  const normalizedTags = item.tags
+    ? item.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)
+    : undefined;
+  const normalizedDependencies = Array.isArray(item.dependsOn)
+    ? item.dependsOn.map((dependency) => dependency.trim()).filter((dependency) => dependency.length > 0)
+    : undefined;
+
   return {
     ...item,
-    tags: item.tags ? [...item.tags] : undefined,
-    dependsOn: Array.isArray(item.dependsOn) ? [...item.dependsOn] : (item.dependsOn ?? undefined),
-    project: item.project ?? undefined,
+    tags: normalizedTags,
+    dependsOn: Array.isArray(item.dependsOn)
+      ? (normalizedDependencies && normalizedDependencies.length ? normalizedDependencies : undefined)
+      : (typeof item.dependsOn === "string" ? item.dependsOn.trim() || undefined : item.dependsOn ?? undefined),
+    project: item.project?.trim() || undefined,
     priority: item.priority ?? undefined,
-    parentId: item.parentId ?? undefined,
+    parentId: item.parentId?.trim() || undefined,
     isBlocked: item.isBlocked ?? undefined,
     isCritical: item.isCritical ?? undefined,
   };

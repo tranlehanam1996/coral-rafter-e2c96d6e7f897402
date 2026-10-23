@@ -78,6 +78,13 @@ describe("JSON exchange boundary", () => {
     expect(imported[0].dependsOn).toBeUndefined();
   });
 
+  it("normalizes imported status and priority casing", () => {
+    const record = { ...valid(), status: " ACTIVE ", priority: " High " };
+    const imported = importJson(backup(record), theme);
+    expect(imported[0].status).toBe("active");
+    expect(imported[0].priority).toBe("high");
+  });
+
   it("rejects unknown top-level JSON shapes", () => {
     expect(() => importJson("[]", theme)).toThrow(/Unsupported backup format/);
     expect(() => importJson("not json", theme)).toThrow(/Invalid JSON/);

@@ -59,7 +59,11 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) {
     throw new Error(`Record ${index + 1} has invalid impact.`);
   }
-  if (typeof raw.status !== "string" || !STATUSES.includes(raw.status as ItemStatus)) {
+  if (typeof raw.status !== "string") {
+    throw new Error(`Record ${index + 1} has an invalid status.`);
+  }
+  const status = raw.status.trim().toLowerCase();
+  if (!STATUSES.includes(status as ItemStatus)) {
     throw new Error(`Record ${index + 1} has an invalid status.`);
   }
   if (typeof raw.notes !== "string" || raw.notes.length > 600) {
@@ -101,10 +105,14 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
 
   let priority: PriorityLevel | undefined = undefined;
   if (raw.priority !== undefined && raw.priority !== null) {
-    if (typeof raw.priority !== "string" || !PRIORITIES.includes(raw.priority as PriorityLevel)) {
+    if (typeof raw.priority !== "string") {
       throw new Error(`Record ${index + 1} has an invalid priority.`);
     }
-    priority = raw.priority as PriorityLevel;
+    const normalizedPriority = raw.priority.trim().toLowerCase();
+    if (!PRIORITIES.includes(normalizedPriority as PriorityLevel)) {
+      throw new Error(`Record ${index + 1} has an invalid priority.`);
+    }
+    priority = normalizedPriority as PriorityLevel;
   }
 
   let parentId: string | undefined = undefined;
@@ -139,7 +147,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     dueDate: raw.dueDate,
     effort: raw.effort,
     impact: raw.impact,
-    status: raw.status as ItemStatus,
+    status: status as ItemStatus,
     notes: raw.notes,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,

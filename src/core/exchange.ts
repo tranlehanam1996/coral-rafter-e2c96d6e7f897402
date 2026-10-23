@@ -349,7 +349,6 @@ export function importCsv(source: string, theme: ThemeConfig): LifeRecord[] {
     if (ids.has(item.id)) throw new Error(`Record ${recordIndex + 1} has a duplicate id.`);
     ids.add(item.id);
     records.push(item);
-    records.push(item);
     recordIndex += 1;
   }
   validateReferences(records);

@@ -43,6 +43,9 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     throw new Error(`Record ${index + 1} is not an object.`);
   }
   const raw = value as Record<string, unknown>;
+  const dueDate = typeof raw.dueDate === "string" ? raw.dueDate.trim() : raw.dueDate;
+  const createdAt = typeof raw.createdAt === "string" ? raw.createdAt.trim() : raw.createdAt;
+  const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : raw.updatedAt;
   if (typeof raw.id !== "string" || raw.id.trim().length < 1 || raw.id.trim().length > 120) {
     throw new Error(`Record ${index + 1} has an invalid id.`);
   }
@@ -52,7 +55,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   if (typeof raw.category !== "string" || !theme.categories.includes(raw.category.trim())) {
     throw new Error(`Record ${index + 1} has an unknown category.`);
   }
-  if (!isCalendarDay(raw.dueDate)) throw new Error(`Record ${index + 1} has an invalid due date.`);
+  if (!isCalendarDay(dueDate)) throw new Error(`Record ${index + 1} has an invalid due date.`);
   if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) {
     throw new Error(`Record ${index + 1} has invalid effort.`);
   }
@@ -69,7 +72,7 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
   if (typeof raw.notes !== "string" || raw.notes.length > 600) {
     throw new Error(`Record ${index + 1} has invalid notes.`);
   }
-  if (!isTimestamp(raw.createdAt) || !isTimestamp(raw.updatedAt)) {
+  if (!isTimestamp(createdAt) || !isTimestamp(updatedAt)) {
     throw new Error(`Record ${index + 1} has invalid timestamps.`);
   }
 
@@ -144,13 +147,13 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     id: raw.id.trim(),
     title: raw.title.trim(),
     category: raw.category.trim(),
-    dueDate: raw.dueDate,
+    dueDate,
     effort: raw.effort,
     impact: raw.impact,
     status: status as ItemStatus,
     notes: raw.notes,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
+    createdAt,
+    updatedAt,
     dependsOn,
     project,
     tags,
@@ -345,6 +348,7 @@ export function importCsv(source: string, theme: ThemeConfig): LifeRecord[] {
     const item = decodeRecord(raw, recordIndex, theme);
     if (ids.has(item.id)) throw new Error(`Record ${recordIndex + 1} has a duplicate id.`);
     ids.add(item.id);
+    records.push(item);
     records.push(item);
     recordIndex += 1;
   }

@@ -11,7 +11,7 @@ const STATUS_SET = new Set<string>(STATUSES);
 const PRIORITY_SET = new Set<string>(PRIORITIES);
 
 function cloneRecord(item: LifeRecord): LifeRecord {
-  const normalizedTags = item.tags
+  const normalizedTags = Array.isArray(item.tags)
     ? item.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)
     : undefined;
   const normalizedDependencies = Array.isArray(item.dependsOn)
@@ -20,7 +20,7 @@ function cloneRecord(item: LifeRecord): LifeRecord {
 
   return {
     ...item,
-    tags: normalizedTags,
+    tags: normalizedTags && normalizedTags.length ? normalizedTags : undefined,
     dependsOn: Array.isArray(item.dependsOn)
       ? (normalizedDependencies && normalizedDependencies.length ? normalizedDependencies : undefined)
       : (typeof item.dependsOn === "string" ? item.dependsOn.trim() || undefined : item.dependsOn ?? undefined),

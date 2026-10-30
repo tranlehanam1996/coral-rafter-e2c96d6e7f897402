@@ -27,8 +27,8 @@ function cloneRecord(item: LifeRecord): LifeRecord {
     project: item.project?.trim() || undefined,
     priority: item.priority ?? undefined,
     parentId: item.parentId?.trim() || undefined,
-    isBlocked: item.isBlocked ?? undefined,
-    isCritical: item.isCritical ?? undefined,
+    isBlocked: typeof item.isBlocked === "boolean" ? item.isBlocked : undefined,
+    isCritical: typeof item.isCritical === "boolean" ? item.isCritical : undefined,
   };
 }
 

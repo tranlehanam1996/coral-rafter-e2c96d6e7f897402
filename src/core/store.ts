@@ -10,12 +10,30 @@ const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high"];
 const STATUS_SET = new Set<string>(STATUSES);
 const PRIORITY_SET = new Set<string>(PRIORITIES);
 
+function uniqueTrimmedStrings(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      result.push(trimmed);
+    }
+  }
+  return result;
+}
+
+function optionalTrimmedString(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function cloneRecord(item: LifeRecord): LifeRecord {
   const normalizedTags = Array.isArray(item.tags)
-    ? item.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)
+    ? uniqueTrimmedStrings(item.tags)
     : undefined;
   const normalizedDependencies = Array.isArray(item.dependsOn)
-    ? item.dependsOn.map((dependency) => dependency.trim()).filter((dependency) => dependency.length > 0)
+    ? uniqueTrimmedStrings(item.dependsOn)
     : undefined;
 
   return {
@@ -23,10 +41,12 @@ function cloneRecord(item: LifeRecord): LifeRecord {
     tags: normalizedTags && normalizedTags.length ? normalizedTags : undefined,
     dependsOn: Array.isArray(item.dependsOn)
       ? (normalizedDependencies && normalizedDependencies.length ? normalizedDependencies : undefined)
-      : (typeof item.dependsOn === "string" ? item.dependsOn.trim() || undefined : item.dependsOn ?? undefined),
-    project: item.project?.trim() || undefined,
-    priority: item.priority ?? undefined,
-    parentId: item.parentId?.trim() || undefined,
+      : (typeof item.dependsOn === "string" ? optionalTrimmedString(item.dependsOn) : item.dependsOn ?? undefined),
+    project: optionalTrimmedString(item.project),
+    priority: item.priority && PRIORITY_SET.has(item.priority)
+      ? item.priority
+      : undefined,
+    parentId: optionalTrimmedString(item.parentId),
     isBlocked: typeof item.isBlocked === "boolean" ? item.isBlocked : undefined,
     isCritical: typeof item.isCritical === "boolean" ? item.isCritical : undefined,
   };

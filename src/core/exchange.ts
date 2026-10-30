@@ -98,12 +98,13 @@ function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRe
     project = trimmed || undefined;
   }
 
-  let tags: string[] = [];
+  let tags: string[] | undefined = undefined;
   if (raw.tags !== undefined && raw.tags !== null) {
     if (!Array.isArray(raw.tags) || !raw.tags.every((t) => typeof t === "string")) {
       throw new Error(`Record ${index + 1} has invalid tags.`);
     }
-    tags = normalizeStringList(raw.tags) ?? [];
+    const normalizedTags = normalizeStringList(raw.tags);
+    tags = normalizedTags && normalizedTags.length ? normalizedTags : undefined;
   }
 
   let priority: PriorityLevel | undefined = undefined;

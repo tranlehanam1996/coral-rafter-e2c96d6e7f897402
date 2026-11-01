@@ -16,10 +16,12 @@ const CSV_FIELDS: readonly (keyof LifeRecord)[] = [
 
 export function isTimestamp(value: unknown): value is string {
   if (typeof value !== "string" || value.length > 40 ||
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) return false;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return false;
-  const canonical = value.includes(".") ? value : value.replace(/Z$/, ".000Z");
+  const canonical = value.includes(".")
+    ? value.replace(/\.(\d{1,3})Z$/, (_, fraction: string) => `.${fraction.padEnd(3, "0")}Z`)
+    : value.replace(/Z$/, ".000Z");
   return parsed.toISOString() === canonical;
 }
 

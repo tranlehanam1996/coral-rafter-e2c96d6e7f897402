@@ -167,12 +167,13 @@ export class RecordStore {
   }
 
   upsert(record: LifeRecord): void {
-    const at = this.records.findIndex((item) => item.id === record.id);
+    const candidate = cloneRecord(record);
+    const at = this.records.findIndex((item) => item.id === candidate.id);
     if (at >= 0) {
-      if (recordsEqual(this.records[at], record)) return;
-      this.records[at] = cloneRecord(record);
+      if (recordsEqual(this.records[at], candidate)) return;
+      this.records[at] = candidate;
     } else {
-      this.records.push(cloneRecord(record));
+      this.records.push(candidate);
     }
     this.commit();
   }

@@ -52,8 +52,20 @@ function cloneRecord(item: LifeRecord): LifeRecord {
   };
 }
 
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      result[key] = canonicalize((value as Record<string, unknown>)[key]);
+    }
+    return result;
+  }
+  return value;
+}
+
 function recordsEqual(a: LifeRecord, b: LifeRecord): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return JSON.stringify(canonicalize(cloneRecord(a))) === JSON.stringify(canonicalize(cloneRecord(b)));
 }
 
 function hasDirectedCycle(edges: Map<string, string[]>): boolean {
@@ -170,7 +182,7 @@ export class RecordStore {
     const candidate = cloneRecord(record);
     const at = this.records.findIndex((item) => item.id === candidate.id);
     if (at >= 0) {
-      if (recordsEqual(cloneRecord(this.records[at]), candidate)) return;
+      if (recordsEqual(this.records[at], candidate)) return;
       this.records[at] = candidate;
     } else {
       this.records.push(candidate);
@@ -195,7 +207,7 @@ export class RecordStore {
 
   replace(records: LifeRecord[]): void {
     const next = records.map(cloneRecord);
-    if (next.length === this.records.length && next.every((item, index) => recordsEqual(item, cloneRecord(this.records[index])))) {
+    if (next.length === this.records.length && next.every((item, index) => recordsEqual(item, this.records[index]))) {
       return;
     }
     this.records = next;

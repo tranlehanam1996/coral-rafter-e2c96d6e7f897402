@@ -170,7 +170,7 @@ export class RecordStore {
     const candidate = cloneRecord(record);
     const at = this.records.findIndex((item) => item.id === candidate.id);
     if (at >= 0) {
-      if (recordsEqual(this.records[at], candidate)) return;
+      if (recordsEqual(cloneRecord(this.records[at]), candidate)) return;
       this.records[at] = candidate;
     } else {
       this.records.push(candidate);
@@ -195,7 +195,7 @@ export class RecordStore {
 
   replace(records: LifeRecord[]): void {
     const next = records.map(cloneRecord);
-    if (next.length === this.records.length && next.every((item, index) => recordsEqual(item, this.records[index]))) {
+    if (next.length === this.records.length && next.every((item, index) => recordsEqual(item, cloneRecord(this.records[index])))) {
       return;
     }
     this.records = next;

@@ -51,8 +51,11 @@ export function isTimestamp(value: unknown): value is string {
   const parsed = new Date(v);
   if (Number.isNaN(parsed.getTime())) return false;
   const iso = parsed.toISOString();
-  const comparable = v.includes(".") ? iso : iso.replace(/\.\d{3}Z$/, "Z");
-  return comparable === v;
+  if (v.includes(".")) {
+    const normalized = v.replace(/\.(\d{1,3})Z$/, (_match, fraction: string) => `.${fraction.padEnd(3, "0")}Z`);
+    return iso === normalized;
+  }
+  return iso.replace(/\.000Z$/, "Z") === v;
 }
 
 function csvField(value: string): string {
@@ -193,7 +196,7 @@ export function importCsv(csv: string, theme: ThemeConfig): LifeRecord[] {
     const depsRaw = get("dependsOn");
     let dependsOn: string | string[] | undefined;
     if (depsRaw) {
-      const parts = depsRaw.split(/[;,]/).map((part) => part.trim()).filter(Boolean);
+      const parts = uniqueTrimmedStrings(depsRaw.split(/[;,]/));
       dependsOn = parts.length === 1 ? parts[0] : (parts.length > 1 ? parts : undefined);
     }
 

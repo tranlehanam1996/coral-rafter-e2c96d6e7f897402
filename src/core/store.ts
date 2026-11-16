@@ -157,9 +157,9 @@ function isStoredRecord(value: unknown): value is LifeRecord {
 
   if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
     if (typeof raw.dependsOn === "string") {
-      if (raw.dependsOn.trim().length < 1) return false;
+      // Empty or whitespace-only values are dropped during normalization.
     } else if (Array.isArray(raw.dependsOn)) {
-      if (!raw.dependsOn.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
+      if (!raw.dependsOn.every((entry) => typeof entry === "string")) return false;
     } else {
       return false;
     }
@@ -169,7 +169,7 @@ function isStoredRecord(value: unknown): value is LifeRecord {
     if (typeof raw.project !== "string" || raw.project.trim().length < 1) return false;
   }
   if (raw.tags !== undefined && raw.tags !== null) {
-    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
+    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string")) return false;
   }
   if (raw.priority !== undefined && raw.priority !== null) {
     if (typeof raw.priority !== "string") return false;

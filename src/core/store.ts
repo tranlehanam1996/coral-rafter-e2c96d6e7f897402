@@ -36,16 +36,28 @@ function cloneRecord(item: LifeRecord): LifeRecord {
     ? uniqueTrimmedStrings(item.dependsOn)
     : undefined;
 
+  const normalizedStatus = typeof item.status === "string" ? item.status.trim().toLowerCase() : item.status;
+  const status = STATUS_SET.has(normalizedStatus as string)
+    ? (normalizedStatus as ItemStatus)
+    : item.status;
+
+  const normalizedPriority = typeof item.priority === "string" ? item.priority.trim().toLowerCase() : item.priority;
+  const priority = normalizedPriority && PRIORITY_SET.has(normalizedPriority as string)
+    ? (normalizedPriority as PriorityLevel)
+    : undefined;
+
   return {
     ...item,
+    id: typeof item.id === "string" ? item.id.trim() : item.id,
+    title: typeof item.title === "string" ? item.title.trim() : item.title,
+    category: typeof item.category === "string" ? item.category.trim() : item.category,
+    status,
     tags: normalizedTags && normalizedTags.length ? normalizedTags : undefined,
     dependsOn: Array.isArray(item.dependsOn)
       ? (normalizedDependencies && normalizedDependencies.length ? normalizedDependencies : undefined)
       : (typeof item.dependsOn === "string" ? optionalTrimmedString(item.dependsOn) : item.dependsOn ?? undefined),
     project: optionalTrimmedString(item.project),
-    priority: item.priority && PRIORITY_SET.has(item.priority)
-      ? item.priority
-      : undefined,
+    priority,
     parentId: optionalTrimmedString(item.parentId),
     isBlocked: typeof item.isBlocked === "boolean" ? item.isBlocked : undefined,
     isCritical: typeof item.isCritical === "boolean" ? item.isCritical : undefined,
@@ -219,8 +231,10 @@ export class RecordStore {
     const idSet = new Set(ids);
     const hasStatus = updates.status !== undefined;
     const hasPriority = updates.priority !== undefined;
-    const validStatus = hasStatus && STATUS_SET.has(updates.status as string) ? updates.status : undefined;
-    const validPriority = hasPriority && PRIORITY_SET.has(updates.priority as string) ? updates.priority : undefined;
+    const normalizedStatus = typeof updates.status === "string" ? updates.status.trim().toLowerCase() : updates.status;
+    const normalizedPriority = typeof updates.priority === "string" ? updates.priority.trim().toLowerCase() : updates.priority;
+    const validStatus = hasStatus && STATUS_SET.has(normalizedStatus as string) ? normalizedStatus : undefined;
+    const validPriority = hasPriority && PRIORITY_SET.has(normalizedPriority as string) ? normalizedPriority : undefined;
 
     let changed = false;
     this.records = this.records.map((item) => {
@@ -228,11 +242,11 @@ export class RecordStore {
       const patch: Partial<Pick<LifeRecord, "status" | "priority">> = {};
       let recordChanged = false;
       if (hasStatus && validStatus !== undefined && item.status !== validStatus) {
-        patch.status = validStatus;
+        patch.status = validStatus as ItemStatus;
         recordChanged = true;
       }
       if (hasPriority && validPriority !== undefined && item.priority !== validPriority) {
-        patch.priority = validPriority;
+        patch.priority = validPriority as PriorityLevel;
         recordChanged = true;
       }
       if (!recordChanged) return item;

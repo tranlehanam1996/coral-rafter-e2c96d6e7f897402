@@ -53,7 +53,7 @@ function cloneRecord(item: LifeRecord): LifeRecord {
     category: typeof item.category === "string" ? item.category.trim() : item.category,
     dueDate: typeof item.dueDate === "string" ? item.dueDate.trim() : item.dueDate,
     status,
-    notes: typeof item.notes === "string" ? item.notes : item.notes,
+    notes: typeof item.notes === "string" ? item.notes.trim() : item.notes,
     createdAt: typeof item.createdAt === "string" ? item.createdAt.trim() : item.createdAt,
     updatedAt: typeof item.updatedAt === "string" ? item.updatedAt.trim() : item.updatedAt,
     tags: normalizedTags && normalizedTags.length ? normalizedTags : undefined,
@@ -149,7 +149,7 @@ function isStoredRecord(value: unknown): value is LifeRecord {
   if (typeof raw.status !== "string") return false;
   const normalizedStatus = raw.status.trim().toLowerCase();
   if (!STATUS_SET.has(normalizedStatus)) return false;
-  if (typeof raw.notes !== "string" || raw.notes.length > 600) return false;
+  if (typeof raw.notes !== "string" || raw.notes.trim().length > 600) return false;
   const createdAt = typeof raw.createdAt === "string" ? raw.createdAt.trim() : raw.createdAt;
   const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : raw.updatedAt;
   if (typeof createdAt !== "string" || !isTimestamp(createdAt)) return false;

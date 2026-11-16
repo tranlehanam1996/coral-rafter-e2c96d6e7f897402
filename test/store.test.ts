@@ -57,6 +57,29 @@ describe("record store", () => {
     expect(seen).toBe(1);
     unsubscribe();
   });
+
+  it("normalizes whitespace and casing in stored records during recovery", () => {
+    const stored = rec({
+      id: " one ", title: " Example ", status: " ACTIVE ", priority: " High ",
+      dueDate: " 2026-08-20 ", createdAt: " 2026-08-01T00:00:00Z ", updatedAt: " 2026-08-01T00:00:00Z ",
+    });
+    const envelope = JSON.stringify({ version: 1, records: [stored], savedAt: "2026-08-01T00:00:00Z" });
+    localStorage.setItem("k", envelope);
+    const store = new RecordStore("k", []);
+    expect(store.all()[0]).toMatchObject({
+      id: "one", title: "Example", status: "active", priority: "high",
+      dueDate: "2026-08-20", createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z",
+    });
+  });
+
+  it("matches normalized ids for removal and bulk updates", () => {
+    const store = new RecordStore("k", []);
+    store.upsert(rec());
+    store.updateMany([" one "], { status: "done" });
+    expect(store.all()[0].status).toBe("done");
+    store.remove(" one ");
+    expect(store.all()).toHaveLength(0);
+  });
 });
 
 describe("record store no-op updates", () => {

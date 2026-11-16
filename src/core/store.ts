@@ -142,15 +142,18 @@ function isStoredRecord(value: unknown): value is LifeRecord {
   if (typeof raw.id !== "string" || raw.id.trim().length < 1 || raw.id.trim().length > 120) return false;
   if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.trim().length > 100) return false;
   if (typeof raw.category !== "string" || raw.category.trim().length < 1) return false;
-  if (!isCalendarDay(raw.dueDate)) return false;
+  const dueDate = typeof raw.dueDate === "string" ? raw.dueDate.trim() : raw.dueDate;
+  if (!isCalendarDay(dueDate)) return false;
   if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) return false;
   if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) return false;
   if (typeof raw.status !== "string") return false;
   const normalizedStatus = raw.status.trim().toLowerCase();
   if (!STATUS_SET.has(normalizedStatus)) return false;
   if (typeof raw.notes !== "string" || raw.notes.length > 600) return false;
-  if (typeof raw.createdAt !== "string" || !isTimestamp(raw.createdAt)) return false;
-  if (typeof raw.updatedAt !== "string" || !isTimestamp(raw.updatedAt)) return false;
+  const createdAt = typeof raw.createdAt === "string" ? raw.createdAt.trim() : raw.createdAt;
+  const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : raw.updatedAt;
+  if (typeof createdAt !== "string" || !isTimestamp(createdAt)) return false;
+  if (typeof updatedAt !== "string" || !isTimestamp(updatedAt)) return false;
 
   if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
     if (typeof raw.dependsOn === "string") {
@@ -211,14 +214,15 @@ export class RecordStore {
   }
 
   remove(id: string): void {
-    if (!this.records.some((item) => item.id === id)) return;
-    this.records = this.records.filter((item) => item.id !== id);
+    const normalized = typeof id === "string" ? id.trim() : id;
+    if (!this.records.some((item) => item.id === normalized)) return;
+    this.records = this.records.filter((item) => item.id !== normalized);
     this.commit();
   }
 
   removeMany(ids: string[]): void {
     if (!ids.length) return;
-    const idSet = new Set(ids);
+    const idSet = new Set(ids.map((id) => (typeof id === "string" ? id.trim() : id)));
     const next = this.records.filter((item) => !idSet.has(item.id));
     if (next.length === this.records.length) return;
     this.records = next;
@@ -236,7 +240,7 @@ export class RecordStore {
 
   updateMany(ids: string[], updates: Partial<Pick<LifeRecord, "status" | "priority">>): void {
     if (!ids.length) return;
-    const idSet = new Set(ids);
+    const idSet = new Set(ids.map((id) => (typeof id === "string" ? id.trim() : id)));
     const hasStatus = updates.status !== undefined;
     const hasPriority = updates.priority !== undefined;
     const normalizedStatus = typeof updates.status === "string" ? updates.status.trim().toLowerCase() : updates.status;

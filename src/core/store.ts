@@ -166,7 +166,7 @@ function isStoredRecord(value: unknown): value is LifeRecord {
   }
 
   if (raw.project !== undefined && raw.project !== null) {
-    if (typeof raw.project !== "string" || raw.project.trim().length < 1) return false;
+    if (typeof raw.project !== "string") return false;
   }
   if (raw.tags !== undefined && raw.tags !== null) {
     if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string")) return false;
@@ -174,10 +174,10 @@ function isStoredRecord(value: unknown): value is LifeRecord {
   if (raw.priority !== undefined && raw.priority !== null) {
     if (typeof raw.priority !== "string") return false;
     const normalizedPriority = raw.priority.trim().toLowerCase();
-    if (!PRIORITY_SET.has(normalizedPriority)) return false;
+    if (normalizedPriority && !PRIORITY_SET.has(normalizedPriority)) return false;
   }
   if (raw.parentId !== undefined && raw.parentId !== null) {
-    if (typeof raw.parentId !== "string" || raw.parentId.trim().length < 1) return false;
+    if (typeof raw.parentId !== "string") return false;
   }
   if (raw.isBlocked !== undefined && raw.isBlocked !== null && typeof raw.isBlocked !== "boolean") return false;
   if (raw.isCritical !== undefined && raw.isCritical !== null && typeof raw.isCritical !== "boolean") return false;

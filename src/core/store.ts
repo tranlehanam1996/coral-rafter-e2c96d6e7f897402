@@ -51,7 +51,11 @@ function cloneRecord(item: LifeRecord): LifeRecord {
     id: typeof item.id === "string" ? item.id.trim() : item.id,
     title: typeof item.title === "string" ? item.title.trim() : item.title,
     category: typeof item.category === "string" ? item.category.trim() : item.category,
+    dueDate: typeof item.dueDate === "string" ? item.dueDate.trim() : item.dueDate,
     status,
+    notes: typeof item.notes === "string" ? item.notes : item.notes,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt.trim() : item.createdAt,
+    updatedAt: typeof item.updatedAt === "string" ? item.updatedAt.trim() : item.updatedAt,
     tags: normalizedTags && normalizedTags.length ? normalizedTags : undefined,
     dependsOn: Array.isArray(item.dependsOn)
       ? (normalizedDependencies && normalizedDependencies.length ? normalizedDependencies : undefined)
@@ -135,13 +139,15 @@ function isStoredRecord(value: unknown): value is LifeRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const raw = value as Record<string, unknown>;
 
-  if (typeof raw.id !== "string" || raw.id.length < 1 || raw.id.length > 120) return false;
-  if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.length > 100) return false;
+  if (typeof raw.id !== "string" || raw.id.trim().length < 1 || raw.id.trim().length > 120) return false;
+  if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.trim().length > 100) return false;
   if (typeof raw.category !== "string" || raw.category.trim().length < 1) return false;
   if (!isCalendarDay(raw.dueDate)) return false;
   if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) return false;
   if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) return false;
-  if (typeof raw.status !== "string" || !STATUS_SET.has(raw.status)) return false;
+  if (typeof raw.status !== "string") return false;
+  const normalizedStatus = raw.status.trim().toLowerCase();
+  if (!STATUS_SET.has(normalizedStatus)) return false;
   if (typeof raw.notes !== "string" || raw.notes.length > 600) return false;
   if (typeof raw.createdAt !== "string" || !isTimestamp(raw.createdAt)) return false;
   if (typeof raw.updatedAt !== "string" || !isTimestamp(raw.updatedAt)) return false;
@@ -163,7 +169,9 @@ function isStoredRecord(value: unknown): value is LifeRecord {
     if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
   }
   if (raw.priority !== undefined && raw.priority !== null) {
-    if (typeof raw.priority !== "string" || !PRIORITY_SET.has(raw.priority)) return false;
+    if (typeof raw.priority !== "string") return false;
+    const normalizedPriority = raw.priority.trim().toLowerCase();
+    if (!PRIORITY_SET.has(normalizedPriority)) return false;
   }
   if (raw.parentId !== undefined && raw.parentId !== null) {
     if (typeof raw.parentId !== "string" || raw.parentId.trim().length < 1) return false;
@@ -291,17 +299,25 @@ export class RecordStore {
     }
 
     const stored = envelope.records;
-    if (!stored.every(isStoredRecord) || !hasValidReferences(stored as LifeRecord[])) {
+    if (!stored.every(isStoredRecord)) {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);
     }
 
+    let cloned: LifeRecord[];
     try {
-      return (stored as LifeRecord[]).map((record) => cloneRecord(record));
+      cloned = (stored as LifeRecord[]).map((record) => cloneRecord(record));
     } catch {
       try { localStorage.removeItem(this.key); } catch { /* ignore */ }
       return fallback.map(cloneRecord);
     }
+
+    if (!hasValidReferences(cloned)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
+    return cloned;
   }
 
   private commit(): void {

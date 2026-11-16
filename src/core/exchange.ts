@@ -280,7 +280,7 @@ function normalizeImportedRecord(value: unknown, theme: ThemeConfig): LifeRecord
     }
   }
   if (raw.project !== undefined && raw.project !== null) {
-    if (typeof raw.project !== "string" || raw.project.trim().length < 1) throw new Error("invalid project");
+    if (typeof raw.project !== "string") throw new Error("invalid project");
   }
   if (raw.tags !== undefined && raw.tags !== null) {
     if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string")) throw new Error("invalid tags");
@@ -288,10 +288,10 @@ function normalizeImportedRecord(value: unknown, theme: ThemeConfig): LifeRecord
   if (raw.priority !== undefined && raw.priority !== null) {
     if (typeof raw.priority !== "string") throw new Error("invalid priority");
     const normalizedPriority = raw.priority.trim().toLowerCase();
-    if (!PRIORITY_SET.has(normalizedPriority)) throw new Error("invalid priority");
+    if (normalizedPriority && !PRIORITY_SET.has(normalizedPriority)) throw new Error("invalid priority");
   }
   if (raw.parentId !== undefined && raw.parentId !== null) {
-    if (typeof raw.parentId !== "string" || raw.parentId.trim().length < 1) throw new Error("invalid parent");
+    if (typeof raw.parentId !== "string") throw new Error("invalid parent");
   }
   if (raw.isBlocked !== undefined && raw.isBlocked !== null && typeof raw.isBlocked !== "boolean") throw new Error("invalid blocked flag");
   if (raw.isCritical !== undefined && raw.isCritical !== null && typeof raw.isCritical !== "boolean") throw new Error("invalid critical flag");
@@ -312,9 +312,10 @@ function normalizeImportedRecord(value: unknown, theme: ThemeConfig): LifeRecord
     ? uniqueTrimmedStrings(raw.tags as string[])
     : undefined;
 
-  const priority = raw.priority !== undefined && raw.priority !== null
-    ? (raw.priority as string).trim().toLowerCase() as PriorityLevel
-    : undefined;
+  const priorityNormalized = raw.priority !== undefined && raw.priority !== null
+    ? (raw.priority as string).trim().toLowerCase()
+    : "";
+  const priority = priorityNormalized ? (priorityNormalized as PriorityLevel) : undefined;
 
   const record: LifeRecord = {
     id: raw.id.trim(),

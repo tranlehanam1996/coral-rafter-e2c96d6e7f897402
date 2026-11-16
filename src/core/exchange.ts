@@ -272,9 +272,9 @@ function normalizeImportedRecord(value: unknown, theme: ThemeConfig): LifeRecord
 
   if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
     if (typeof raw.dependsOn === "string") {
-      if (raw.dependsOn.trim().length < 1) throw new Error("invalid dependency");
+      // Empty or whitespace-only values are dropped during normalization.
     } else if (Array.isArray(raw.dependsOn)) {
-      if (!raw.dependsOn.every((entry) => typeof entry === "string" && entry.trim().length > 0)) throw new Error("invalid dependency");
+      if (!raw.dependsOn.every((entry) => typeof entry === "string")) throw new Error("invalid dependency");
     } else {
       throw new Error("invalid dependency");
     }
@@ -283,7 +283,7 @@ function normalizeImportedRecord(value: unknown, theme: ThemeConfig): LifeRecord
     if (typeof raw.project !== "string" || raw.project.trim().length < 1) throw new Error("invalid project");
   }
   if (raw.tags !== undefined && raw.tags !== null) {
-    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string" && entry.trim().length > 0)) throw new Error("invalid tags");
+    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string")) throw new Error("invalid tags");
   }
   if (raw.priority !== undefined && raw.priority !== null) {
     if (typeof raw.priority !== "string") throw new Error("invalid priority");

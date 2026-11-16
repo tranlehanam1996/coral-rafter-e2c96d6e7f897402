@@ -1,37 +1,20 @@
-import type { ItemStatus, LifeRecord, ThemeConfig, PriorityLevel } from "../types";
+import type { ItemStatus, LifeRecord, PriorityLevel } from "../types";
 import { isCalendarDay } from "./date-utils";
+import { isTimestamp } from "./exchange";
 
-export function exportJson(records: readonly LifeRecord[]): string {
-  return JSON.stringify({ schema: 1, exportedAt: new Date().toISOString(), records }, null, 2);
-}
+interface StoreEnvelope { version: 1; records: LifeRecord[]; savedAt: string }
+type Listener = (records: readonly LifeRecord[]) => void;
 
 const STATUSES: readonly ItemStatus[] = ["planned", "active", "done", "archived"];
 const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high"];
+const STATUS_SET = new Set<string>(STATUSES);
+const PRIORITY_SET = new Set<string>(PRIORITIES);
 
-const CSV_FIELDS: readonly (keyof LifeRecord)[] = [
-  "id", "title", "category", "dueDate", "effort", "impact", "status", "notes",
-  "dependsOn", "project", "tags", "priority", "parentId", "isBlocked", "isCritical",
-  "createdAt", "updatedAt",
-];
-
-export function isTimestamp(value: unknown): value is string {
-  if (typeof value !== "string" || value.length > 40 ||
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) return false;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const canonical = value.includes(".")
-    ? value.replace(/\.(\d{1,3})Z$/, (_, fraction: string) => `.${fraction.padEnd(3, "0")}Z`)
-    : value.replace(/Z$/, ".000Z");
-  return parsed.toISOString() === canonical;
-}
-
-function normalizeStringList(value: unknown): string[] | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) return undefined;
+function uniqueTrimmedStrings(values: readonly string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
-  for (const entry of value) {
-    const trimmed = entry.trim();
+  for (const value of values) {
+    const trimmed = value.trim();
     if (trimmed && !seen.has(trimmed)) {
       seen.add(trimmed);
       result.push(trimmed);
@@ -40,131 +23,65 @@ function normalizeStringList(value: unknown): string[] | undefined {
   return result;
 }
 
-function decodeRecord(value: unknown, index: number, theme: ThemeConfig): LifeRecord {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`Record ${index + 1} is not an object.`);
-  }
-  const raw = value as Record<string, unknown>;
-  const dueDate = typeof raw.dueDate === "string" ? raw.dueDate.trim() : raw.dueDate;
-  const createdAt = typeof raw.createdAt === "string" ? raw.createdAt.trim() : raw.createdAt;
-  const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : raw.updatedAt;
-  if (typeof raw.id !== "string" || raw.id.trim().length < 1 || raw.id.trim().length > 120) {
-    throw new Error(`Record ${index + 1} has an invalid id.`);
-  }
-  if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.trim().length > 100) {
-    throw new Error(`Record ${index + 1} has an invalid title.`);
-  }
-  if (typeof raw.category !== "string" || !theme.categories.includes(raw.category.trim())) {
-    throw new Error(`Record ${index + 1} has an unknown category.`);
-  }
-  if (!isCalendarDay(dueDate)) throw new Error(`Record ${index + 1} has an invalid due date.`);
-  if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) {
-    throw new Error(`Record ${index + 1} has invalid effort.`);
-  }
-  if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) {
-    throw new Error(`Record ${index + 1} has invalid impact.`);
-  }
-  if (typeof raw.status !== "string") {
-    throw new Error(`Record ${index + 1} has an invalid status.`);
-  }
-  const status = raw.status.trim().toLowerCase();
-  if (!STATUSES.includes(status as ItemStatus)) {
-    throw new Error(`Record ${index + 1} has an invalid status.`);
-  }
-  if (typeof raw.notes !== "string" || raw.notes.length > 600) {
-    throw new Error(`Record ${index + 1} has invalid notes.`);
-  }
-  if (!isTimestamp(createdAt) || !isTimestamp(updatedAt)) {
-    throw new Error(`Record ${index + 1} has invalid timestamps.`);
-  }
+function optionalTrimmedString(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
-  let dependsOn: string | string[] | undefined = undefined;
-  if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
-    if (typeof raw.dependsOn === "string") {
-      const trimmed = raw.dependsOn.trim();
-      dependsOn = trimmed || undefined;
-    } else if (Array.isArray(raw.dependsOn) && raw.dependsOn.every((id) => typeof id === "string")) {
-      const normalized = normalizeStringList(raw.dependsOn);
-      dependsOn = normalized && normalized.length ? normalized : undefined;
-    } else {
-      throw new Error(`Record ${index + 1} has invalid dependency data.`);
-    }
-  }
+function cloneRecord(item: LifeRecord): LifeRecord {
+  const normalizedTags = Array.isArray(item.tags)
+    ? uniqueTrimmedStrings(item.tags)
+    : undefined;
+  const normalizedDependencies = Array.isArray(item.dependsOn)
+    ? uniqueTrimmedStrings(item.dependsOn)
+    : undefined;
 
-  let project: string | undefined = undefined;
-  if (raw.project !== undefined && raw.project !== null) {
-    if (typeof raw.project !== "string") {
-      throw new Error(`Record ${index + 1} has invalid project.`);
-    }
-    const trimmed = raw.project.trim();
-    project = trimmed || undefined;
-  }
+  const normalizedStatus = typeof item.status === "string" ? item.status.trim().toLowerCase() : item.status;
+  const status = STATUS_SET.has(normalizedStatus as string)
+    ? (normalizedStatus as ItemStatus)
+    : item.status;
 
-  let tags: string[] | undefined = undefined;
-  if (raw.tags !== undefined && raw.tags !== null) {
-    if (!Array.isArray(raw.tags) || !raw.tags.every((t) => typeof t === "string")) {
-      throw new Error(`Record ${index + 1} has invalid tags.`);
-    }
-    const normalizedTags = normalizeStringList(raw.tags);
-    tags = normalizedTags && normalizedTags.length ? normalizedTags : undefined;
-  }
-
-  let priority: PriorityLevel | undefined = undefined;
-  if (raw.priority !== undefined && raw.priority !== null) {
-    if (typeof raw.priority !== "string") {
-      throw new Error(`Record ${index + 1} has an invalid priority.`);
-    }
-    const normalizedPriority = raw.priority.trim().toLowerCase();
-    if (!PRIORITIES.includes(normalizedPriority as PriorityLevel)) {
-      throw new Error(`Record ${index + 1} has an invalid priority.`);
-    }
-    priority = normalizedPriority as PriorityLevel;
-  }
-
-  let parentId: string | undefined = undefined;
-  if (raw.parentId !== undefined && raw.parentId !== null) {
-    if (typeof raw.parentId !== "string") {
-      throw new Error(`Record ${index + 1} has invalid parentId.`);
-    }
-    const trimmed = raw.parentId.trim();
-    parentId = trimmed || undefined;
-  }
-
-  let isBlocked: boolean | undefined = undefined;
-  if (raw.isBlocked !== undefined && raw.isBlocked !== null) {
-    if (typeof raw.isBlocked !== "boolean") {
-      throw new Error(`Record ${index + 1} has an invalid isBlocked.`);
-    }
-    isBlocked = raw.isBlocked;
-  }
-
-  let isCritical: boolean | undefined = undefined;
-  if (raw.isCritical !== undefined && raw.isCritical !== null) {
-    if (typeof raw.isCritical !== "boolean") {
-      throw new Error(`Record ${index + 1} has an invalid isCritical.`);
-    }
-    isCritical = raw.isCritical;
-  }
+  const normalizedPriority = typeof item.priority === "string" ? item.priority.trim().toLowerCase() : item.priority;
+  const priority = normalizedPriority && PRIORITY_SET.has(normalizedPriority as string)
+    ? (normalizedPriority as PriorityLevel)
+    : undefined;
 
   return {
-    id: raw.id.trim(),
-    title: raw.title.trim(),
-    category: raw.category.trim(),
-    dueDate,
-    effort: raw.effort,
-    impact: raw.impact,
-    status: status as ItemStatus,
-    notes: raw.notes,
-    createdAt,
-    updatedAt,
-    dependsOn,
-    project,
-    tags,
+    ...item,
+    id: typeof item.id === "string" ? item.id.trim() : item.id,
+    title: typeof item.title === "string" ? item.title.trim() : item.title,
+    category: typeof item.category === "string" ? item.category.trim() : item.category,
+    dueDate: typeof item.dueDate === "string" ? item.dueDate.trim() : item.dueDate,
+    status,
+    notes: typeof item.notes === "string" ? item.notes.trim() : item.notes,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt.trim() : item.createdAt,
+    updatedAt: typeof item.updatedAt === "string" ? item.updatedAt.trim() : item.updatedAt,
+    tags: normalizedTags && normalizedTags.length ? normalizedTags : undefined,
+    dependsOn: Array.isArray(item.dependsOn)
+      ? (normalizedDependencies && normalizedDependencies.length ? normalizedDependencies : undefined)
+      : (typeof item.dependsOn === "string" ? optionalTrimmedString(item.dependsOn) : item.dependsOn ?? undefined),
+    project: optionalTrimmedString(item.project),
     priority,
-    parentId,
-    isBlocked,
-    isCritical,
+    parentId: optionalTrimmedString(item.parentId),
+    isBlocked: typeof item.isBlocked === "boolean" ? item.isBlocked : undefined,
+    isCritical: typeof item.isCritical === "boolean" ? item.isCritical : undefined,
   };
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      result[key] = canonicalize((value as Record<string, unknown>)[key]);
+    }
+    return result;
+  }
+  return value;
+}
+
+function recordsEqual(a: LifeRecord, b: LifeRecord): boolean {
+  return JSON.stringify(canonicalize(cloneRecord(a))) === JSON.stringify(canonicalize(cloneRecord(b)));
 }
 
 function hasDirectedCycle(edges: Map<string, string[]>): boolean {
@@ -186,23 +103,21 @@ function hasDirectedCycle(edges: Map<string, string[]>): boolean {
   return false;
 }
 
-function validateReferences(records: readonly LifeRecord[]): void {
+function hasValidReferences(records: readonly LifeRecord[]): boolean {
   const ids = new Set(records.map((record) => record.id));
-  records.forEach((record, index) => {
+  if (ids.size !== records.length) return false;
+
+  for (const record of records) {
     const deps = Array.isArray(record.dependsOn)
       ? record.dependsOn
       : record.dependsOn
         ? [record.dependsOn]
         : [];
     for (const dep of deps) {
-      if (!ids.has(dep)) {
-        throw new Error(`Record ${index + 1} references an unknown dependency: ${dep}.`);
-      }
+      if (!ids.has(dep)) return false;
     }
-    if (record.parentId && !ids.has(record.parentId)) {
-      throw new Error(`Record ${index + 1} references an unknown parent: ${record.parentId}.`);
-    }
-  });
+    if (record.parentId && !ids.has(record.parentId)) return false;
+  }
 
   const dependencyEdges = new Map<string, string[]>();
   const parentEdges = new Map<string, string[]>();
@@ -215,152 +130,207 @@ function validateReferences(records: readonly LifeRecord[]): void {
     dependencyEdges.set(record.id, deps);
     parentEdges.set(record.id, record.parentId ? [record.parentId] : []);
   }
-  if (hasDirectedCycle(dependencyEdges)) {
-    throw new Error("Circular dependency detected.");
-  }
-  if (hasDirectedCycle(parentEdges)) {
-    throw new Error("Circular parent reference detected.");
-  }
+  if (hasDirectedCycle(dependencyEdges)) return false;
+  if (hasDirectedCycle(parentEdges)) return false;
+  return true;
 }
 
-export function importJson(source: string, theme: ThemeConfig): LifeRecord[] {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(source);
-  } catch {
-    throw new Error("Invalid JSON.");
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Unsupported backup format.");
-  }
-  const envelope = parsed as { schema?: unknown; records?: unknown };
-  if (envelope.schema !== 1 || !Array.isArray(envelope.records)) throw new Error("Unsupported backup format.");
-  const ids = new Set<string>();
-  const records = envelope.records.map((value, index) => {
-    const item = decodeRecord(value, index, theme);
-    if (ids.has(item.id)) throw new Error(`Record ${index + 1} has a duplicate id.`);
-    ids.add(item.id);
-    return item;
-  });
-  validateReferences(records);
-  return records;
-}
+function isStoredRecord(value: unknown): value is LifeRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
 
-export function parseCsv(source: string): string[][] {
-  const text = source.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const rows: string[][] = [];
-  let current: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  let i = 0;
-  while (i < text.length) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
-      }
-      field += ch; i++; continue;
+  if (typeof raw.id !== "string" || raw.id.trim().length < 1 || raw.id.trim().length > 120) return false;
+  if (typeof raw.title !== "string" || raw.title.trim().length < 1 || raw.title.trim().length > 100) return false;
+  if (typeof raw.category !== "string" || raw.category.trim().length < 1) return false;
+  const dueDate = typeof raw.dueDate === "string" ? raw.dueDate.trim() : raw.dueDate;
+  if (!isCalendarDay(dueDate)) return false;
+  if (typeof raw.effort !== "number" || !Number.isFinite(raw.effort) || raw.effort < 1 || raw.effort > 480) return false;
+  if (typeof raw.impact !== "number" || !Number.isInteger(raw.impact) || raw.impact < 1 || raw.impact > 5) return false;
+  if (typeof raw.status !== "string") return false;
+  const normalizedStatus = raw.status.trim().toLowerCase();
+  if (!STATUS_SET.has(normalizedStatus)) return false;
+  if (typeof raw.notes !== "string" || raw.notes.trim().length > 600) return false;
+  const createdAt = typeof raw.createdAt === "string" ? raw.createdAt.trim() : raw.createdAt;
+  const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : raw.updatedAt;
+  if (typeof createdAt !== "string" || !isTimestamp(createdAt)) return false;
+  if (typeof updatedAt !== "string" || !isTimestamp(updatedAt)) return false;
+
+  if (raw.dependsOn !== undefined && raw.dependsOn !== null) {
+    if (typeof raw.dependsOn === "string") {
+      if (raw.dependsOn.trim().length < 1) return false;
+    } else if (Array.isArray(raw.dependsOn)) {
+      if (!raw.dependsOn.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
+    } else {
+      return false;
     }
-    if (ch === '"') { inQuotes = true; i++; continue; }
-    if (ch === ',') { current.push(field); field = ""; i++; continue; }
-    if (ch === '\n') { current.push(field); field = ""; rows.push(current); current = []; i++; continue; }
-    field += ch; i++; continue;
   }
-  if (field !== "" || current.length > 0) { current.push(field); rows.push(current); }
-  return rows.filter((row) => !row.every((cell) => cell.trim() === ""));
+
+  if (raw.project !== undefined && raw.project !== null) {
+    if (typeof raw.project !== "string" || raw.project.trim().length < 1) return false;
+  }
+  if (raw.tags !== undefined && raw.tags !== null) {
+    if (!Array.isArray(raw.tags) || !raw.tags.every((entry) => typeof entry === "string" && entry.trim().length > 0)) return false;
+  }
+  if (raw.priority !== undefined && raw.priority !== null) {
+    if (typeof raw.priority !== "string") return false;
+    const normalizedPriority = raw.priority.trim().toLowerCase();
+    if (!PRIORITY_SET.has(normalizedPriority)) return false;
+  }
+  if (raw.parentId !== undefined && raw.parentId !== null) {
+    if (typeof raw.parentId !== "string" || raw.parentId.trim().length < 1) return false;
+  }
+  if (raw.isBlocked !== undefined && raw.isBlocked !== null && typeof raw.isBlocked !== "boolean") return false;
+  if (raw.isCritical !== undefined && raw.isCritical !== null && typeof raw.isCritical !== "boolean") return false;
+
+  return true;
 }
 
-function csvCell(value: unknown): string { return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`; }
+export class RecordStore {
+  private readonly listeners = new Set<Listener>();
+  private records: LifeRecord[];
 
-export function exportCsv(records: readonly LifeRecord[]): string {
-  return [CSV_FIELDS.join(","), ...records.map((item) => CSV_FIELDS.map((field) => csvCell(item[field])).join(","))].join("\n");
-}
-
-function rowToObject(header: readonly string[], row: readonly string[]): Record<string, unknown> {
-  const idx = (name: string): number => header.indexOf(name);
-  const cell = (name: string): string => {
-    const i = idx(name);
-    return i >= 0 && i < row.length ? row[i] : "";
-  };
-  const tagsCell = cell("tags").trim();
-  const tags = tagsCell === "" ? [] : tagsCell.split(",").map((s) => s.trim()).filter(Boolean);
-  const dependsCell = cell("dependsOn").trim();
-  const dependsOn = dependsCell === ""
-    ? undefined
-    : (dependsCell.includes(",") ? dependsCell.split(",").map((s) => s.trim()).filter(Boolean) : dependsCell);
-  const priorityCell = cell("priority").trim().toLowerCase();
-  const projectCell = cell("project").trim();
-  const parentCell = cell("parentId").trim();
-  const blockedCell = cell("isBlocked").trim();
-  const criticalCell = cell("isCritical").trim();
-  const statusCell = cell("status").trim().toLowerCase();
-  const now = new Date().toISOString();
-
-  let isBlocked: boolean | string | undefined = undefined;
-  if (blockedCell !== "") {
-    const lowered = blockedCell.toLowerCase();
-    if (lowered === "true" || lowered === "1" || lowered === "yes") isBlocked = true;
-    else if (lowered === "false" || lowered === "0" || lowered === "no") isBlocked = false;
-    else isBlocked = blockedCell;
+  constructor(private readonly key: string, initial: LifeRecord[]) {
+    this.records = this.read(initial);
   }
 
-  let isCritical: boolean | string | undefined = undefined;
-  if (criticalCell !== "") {
-    const lowered = criticalCell.toLowerCase();
-    if (lowered === "true" || lowered === "1" || lowered === "yes") isCritical = true;
-    else if (lowered === "false" || lowered === "0" || lowered === "no") isCritical = false;
-    else isCritical = criticalCell;
+  all(): readonly LifeRecord[] { return this.records.map(cloneRecord); }
+
+  subscribe(listener: Listener): () => void {
+    this.listeners.add(listener);
+    listener(this.all());
+    return () => this.listeners.delete(listener);
   }
 
-  return {
-    id: cell("id"),
-    title: cell("title"),
-    category: cell("category"),
-    dueDate: cell("dueDate"),
-    effort: Number(cell("effort")),
-    impact: Number(cell("impact")),
-    status: statusCell,
-    notes: cell("notes"),
-    dependsOn,
-    project: projectCell === "" ? undefined : projectCell,
-    tags,
-    priority: priorityCell === "" ? undefined : priorityCell,
-    parentId: parentCell === "" ? undefined : parentCell,
-    isBlocked,
-    isCritical,
-    createdAt: cell("createdAt").trim() || now,
-    updatedAt: cell("updatedAt").trim() || now,
-  };
-}
-
-export function importCsv(source: string, theme: ThemeConfig): LifeRecord[] {
-  const rows = parseCsv(source);
-  if (rows.length < 2) throw new Error("CSV must include a header and at least one record.");
-  const header = rows[0].map((h) => h.trim());
-  const required = ["id", "title", "category", "dueDate", "effort", "impact", "status"];
-  for (const column of required) {
-    if (!header.includes(column)) throw new Error(`Missing required column: ${column}.`);
+  upsert(record: LifeRecord): void {
+    const candidate = cloneRecord(record);
+    const at = this.records.findIndex((item) => item.id === candidate.id);
+    if (at >= 0) {
+      if (recordsEqual(this.records[at], candidate)) return;
+      this.records[at] = candidate;
+    } else {
+      this.records.push(candidate);
+    }
+    this.commit();
   }
-  const ids = new Set<string>();
-  const records: LifeRecord[] = [];
-  let recordIndex = 0;
-  for (const row of rows.slice(1)) {
-    if (row.every((cell) => cell.trim() === "")) continue;
-    const raw = rowToObject(header, row);
-    const item = decodeRecord(raw, recordIndex, theme);
-    if (ids.has(item.id)) throw new Error(`Record ${recordIndex + 1} has a duplicate id.`);
-    ids.add(item.id);
-    records.push(item);
-    recordIndex += 1;
-  }
-  validateReferences(records);
-  return records;
-}
 
-export function download(name: string, contents: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([contents], { type }));
-  const anchor = Object.assign(document.createElement("a"), { href: url, download: name });
-  anchor.click();
-  URL.revokeObjectURL(url);
+  remove(id: string): void {
+    const normalized = typeof id === "string" ? id.trim() : id;
+    if (!this.records.some((item) => item.id === normalized)) return;
+    this.records = this.records.filter((item) => item.id !== normalized);
+    this.commit();
+  }
+
+  removeMany(ids: string[]): void {
+    if (!ids.length) return;
+    const idSet = new Set(ids.map((id) => (typeof id === "string" ? id.trim() : id)));
+    const next = this.records.filter((item) => !idSet.has(item.id));
+    if (next.length === this.records.length) return;
+    this.records = next;
+    this.commit();
+  }
+
+  replace(records: LifeRecord[]): void {
+    const next = records.map(cloneRecord);
+    if (next.length === this.records.length && next.every((item, index) => recordsEqual(item, this.records[index]))) {
+      return;
+    }
+    this.records = next;
+    this.commit();
+  }
+
+  updateMany(ids: string[], updates: Partial<Pick<LifeRecord, "status" | "priority">>): void {
+    if (!ids.length) return;
+    const idSet = new Set(ids.map((id) => (typeof id === "string" ? id.trim() : id)));
+    const hasStatus = updates.status !== undefined;
+    const hasPriority = updates.priority !== undefined;
+    const normalizedStatus = typeof updates.status === "string" ? updates.status.trim().toLowerCase() : updates.status;
+    const normalizedPriority = typeof updates.priority === "string" ? updates.priority.trim().toLowerCase() : updates.priority;
+    const validStatus = hasStatus && STATUS_SET.has(normalizedStatus as string) ? normalizedStatus : undefined;
+    const validPriority = hasPriority && PRIORITY_SET.has(normalizedPriority as string) ? normalizedPriority : undefined;
+
+    let changed = false;
+    this.records = this.records.map((item) => {
+      if (!idSet.has(item.id)) return item;
+      const patch: Partial<Pick<LifeRecord, "status" | "priority">> = {};
+      let recordChanged = false;
+      if (hasStatus && validStatus !== undefined && item.status !== validStatus) {
+        patch.status = validStatus as ItemStatus;
+        recordChanged = true;
+      }
+      if (hasPriority && validPriority !== undefined && item.priority !== validPriority) {
+        patch.priority = validPriority as PriorityLevel;
+        recordChanged = true;
+      }
+      if (!recordChanged) return item;
+      changed = true;
+      return { ...cloneRecord(item), ...patch, updatedAt: new Date().toISOString() };
+    });
+    if (!changed) return;
+    this.commit();
+  }
+
+  clear(): void {
+    if (!this.records.length) return;
+    this.records = [];
+    this.commit();
+  }
+
+  private read(fallback: LifeRecord[]): LifeRecord[] {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(this.key);
+    } catch {
+      raw = null;
+    }
+    if (raw === null) return fallback.map(cloneRecord);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+    const envelope = parsed as { version?: unknown; records?: unknown };
+    if (envelope.version !== 1 || !Array.isArray(envelope.records)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
+    const stored = envelope.records;
+    if (!stored.every(isStoredRecord)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
+    let cloned: LifeRecord[];
+    try {
+      cloned = (stored as LifeRecord[]).map((record) => cloneRecord(record));
+    } catch {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
+    if (!hasValidReferences(cloned)) {
+      try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+      return fallback.map(cloneRecord);
+    }
+
+    return cloned;
+  }
+
+  private commit(): void {
+    const envelope: StoreEnvelope = { version: 1, records: this.records.map(cloneRecord), savedAt: new Date().toISOString() };
+    try {
+      localStorage.setItem(this.key, JSON.stringify(envelope));
+    } catch {
+      // Keep the in-memory state usable when persistence is unavailable.
+    }
+    for (const listener of this.listeners) listener(this.all());
+  }
 }

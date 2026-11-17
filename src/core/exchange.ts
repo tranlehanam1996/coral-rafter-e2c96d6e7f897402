@@ -132,11 +132,16 @@ export function exportCsv(records: readonly LifeRecord[]): string {
       ? record.dependsOn.join(";")
       : (record.dependsOn ?? "");
     const tags = record.tags ? record.tags.join(";") : "";
+    const isBlocked = record.isBlocked === true
+      ? "true"
+      : record.isBlocked === false
+        ? "false"
+        : "";
     const fields = [
       record.id, record.title, record.category, record.dueDate,
       String(record.effort), String(record.impact), record.status, record.notes ?? "",
       dependsOn, record.project ?? "", tags, record.priority ?? "",
-      record.parentId ?? "", record.isBlocked ? "true" : "",
+      record.parentId ?? "", isBlocked,
       record.createdAt, record.updatedAt,
     ];
     lines.push(fields.map(csvField).join(","));

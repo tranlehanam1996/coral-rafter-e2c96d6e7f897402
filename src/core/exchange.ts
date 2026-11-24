@@ -123,7 +123,7 @@ export function parseCsv(text: string): string[][] {
 export function exportCsv(records: readonly LifeRecord[]): string {
   const header = [
     "id", "title", "category", "dueDate", "effort", "impact", "status", "notes",
-    "dependsOn", "project", "tags", "priority", "parentId", "isBlocked",
+    "dependsOn", "project", "tags", "priority", "parentId", "isBlocked", "isCritical",
     "createdAt", "updatedAt",
   ];
   const lines = [header.join(",")];
@@ -137,11 +137,16 @@ export function exportCsv(records: readonly LifeRecord[]): string {
       : record.isBlocked === false
         ? "false"
         : "";
+    const isCritical = record.isCritical === true
+      ? "true"
+      : record.isCritical === false
+        ? "false"
+        : "";
     const fields = [
       record.id, record.title, record.category, record.dueDate,
       String(record.effort), String(record.impact), record.status, record.notes ?? "",
       dependsOn, record.project ?? "", tags, record.priority ?? "",
-      record.parentId ?? "", isBlocked,
+      record.parentId ?? "", isBlocked, isCritical,
       record.createdAt, record.updatedAt,
     ];
     lines.push(fields.map(csvField).join(","));
@@ -220,6 +225,12 @@ export function importCsv(csv: string, theme: ThemeConfig): LifeRecord[] {
       : blockedRaw === "false"
         ? false
         : undefined;
+    const criticalRaw = get("isCritical").toLowerCase();
+    const isCritical = criticalRaw === "true"
+      ? true
+      : criticalRaw === "false"
+        ? false
+        : undefined;
 
     if (ids.has(id)) throw new Error("duplicate id");
     ids.add(id);
@@ -228,7 +239,7 @@ export function importCsv(csv: string, theme: ThemeConfig): LifeRecord[] {
       id, title, category, dueDate, effort, impact,
       status: statusRaw as ItemStatus, notes, createdAt, updatedAt,
       tags: tags && tags.length ? tags : undefined,
-      dependsOn, project, priority, parentId, isBlocked,
+      dependsOn, project, priority, parentId, isBlocked, isCritical,
     });
   }
 

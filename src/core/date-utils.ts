@@ -1,79 +1,61 @@
-export function daysBetween(start: string, end: string): number {
-  const d1 = Date.parse(`${start}T00:00:00Z`);
-  const d2 = Date.parse(`${end}T00:00:00Z`);
-  if (!Number.isFinite(d1) || !Number.isFinite(d2)) return Number.POSITIVE_INFINITY;
-  return Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-}
+import { describe, expect, it } from "vitest";
+import { daysBetween, formatIsoDate, isCalendarDay, parseRelativeDate } from "../src/core/date-utils";
 
-export function formatIsoDate(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
+describe("date utilities", () => {
+  it("calculates day distance", () => {
+    expect(daysBetween("2026-08-19", "2026-08-20")).toBe(1);
+  });
 
-export function parseRelativeDate(input: string): string | null {
-  const now = new Date();
-  const normalized = input.toLowerCase().trim();
+  it("rejects rollover calendar dates in day distance", () => {
+    expect(daysBetween("2026-02-30", "2026-03-01")).toBe(Infinity);
+  });
 
-  const safeFormat = (date: Date): string | null => {
-    try {
-      const value = formatIsoDate(date);
-      return isCalendarDay(value) ? value : null;
-    } catch {
-      return null;
-    }
-  };
+  it("formats ISO dates", () => {
+    expect(formatIsoDate(new Date("2026-08-20T12:00:00Z"))).toBe("2026-08-20");
+  });
 
-  if (normalized === 'today') return safeFormat(now);
-  if (normalized === 'yesterday') {
-    const yesterday = new Date(now);
-    yesterday.setUTCDate(now.getUTCDate() - 1);
-    return safeFormat(yesterday);
-  }
-  if (normalized === 'tomorrow') {
-    const tomorrow = new Date(now);
-    tomorrow.setUTCDate(now.getUTCDate() + 1);
-    return safeFormat(tomorrow);
-  }
+  it("accepts only real calendar dates", () => {
+    expect(isCalendarDay("2026-08-20")).toBe(true);
+    expect(isCalendarDay("2026-02-30")).toBe(false);
+    expect(isCalendarDay(42)).toBe(false);
+  });
 
-  const inDaysMatch = normalized.match(/^in\s+(\d+)\s+days?$/);
-  if (inDaysMatch) {
-    const amount = Number(inDaysMatch[1]);
-    if (!Number.isFinite(amount) || amount < 0) return null;
-    const result = new Date(now);
-    result.setUTCDate(now.getUTCDate() + amount);
-    return safeFormat(result);
-  }
+  it("resolves relative date phrases", () => {
+    expect(parseRelativeDate("today")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(parseRelativeDate("not a date")).toBeNull();
+  });
 
-  const inWeeksMatch = normalized.match(/^in\s+(\d+)\s+weeks?$/);
-  if (inWeeksMatch) {
-    const amount = Number(inWeeksMatch[1]);
-    if (!Number.isFinite(amount) || amount < 0) return null;
-    const result = new Date(now);
-    result.setUTCDate(now.getUTCDate() + amount * 7);
-    return safeFormat(result);
-  }
+  it("returns null for relative dates that overflow the calendar", () => {
+    expect(parseRelativeDate("in 999999999 days")).toBeNull();
+  });
 
-  const nextDayMatch = normalized.match(/^next\s+(\w+)$/);
-  if (nextDayMatch) {
-    const dayName = nextDayMatch[1];
-    const days = {
-      sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
-    };
-    const targetDay = days[dayName as keyof typeof days];
-    if (targetDay === undefined) return null;
+  it("resolves next weekday to a UTC calendar day matching that weekday", () => {
+    const result = parseRelativeDate("next monday");
+    expect(result).not.toBeNull();
+    expect(new Date(`${result}T00:00:00Z`).getUTCDay()).toBe(1);
+  });
 
-    const result = new Date(now);
-    const currentDay = now.getUTCDay();
-    let diff = targetDay - currentDay;
-    if (diff <= 0) diff += 7;
-    result.setUTCDate(now.getUTCDate() + diff);
-    return safeFormat(result);
-  }
+  it("resolves tomorrow to the following UTC calendar day", () => {
+    const today = parseRelativeDate("today")!;
+    const tomorrow = parseRelativeDate("tomorrow")!;
+    expect(daysBetween(today, tomorrow)).toBe(1);
+  });
 
-  return null;
-}
+  it("resolves yesterday to the previous UTC calendar day", () => {
+    const today = parseRelativeDate("today")!;
+    const yesterday = parseRelativeDate("yesterday")!;
+    expect(daysBetween(yesterday, today)).toBe(1);
+  });
 
-export function isCalendarDay(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
+  it("resolves in N days", () => {
+    const today = parseRelativeDate("today")!;
+    const later = parseRelativeDate("in 3 days")!;
+    expect(daysBetween(today, later)).toBe(3);
+  });
+
+  it("resolves in N weeks", () => {
+    const today = parseRelativeDate("today")!;
+    const later = parseRelativeDate("in 2 weeks")!;
+    expect(daysBetween(today, later)).toBe(14);
+  });
+});

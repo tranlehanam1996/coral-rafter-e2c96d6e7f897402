@@ -220,17 +220,27 @@ export function importCsv(csv: string, theme: ThemeConfig): LifeRecord[] {
     }
     const parentId = optionalTrimmedString(get("parentId"));
     const blockedRaw = get("isBlocked").toLowerCase();
-    const isBlocked = blockedRaw === "true"
-      ? true
-      : blockedRaw === "false"
-        ? false
-        : undefined;
+    let isBlocked: boolean | undefined;
+    if (blockedRaw === "") {
+      isBlocked = undefined;
+    } else if (blockedRaw === "true") {
+      isBlocked = true;
+    } else if (blockedRaw === "false") {
+      isBlocked = false;
+    } else {
+      throw new Error("invalid blocked flag");
+    }
     const criticalRaw = get("isCritical").toLowerCase();
-    const isCritical = criticalRaw === "true"
-      ? true
-      : criticalRaw === "false"
-        ? false
-        : undefined;
+    let isCritical: boolean | undefined;
+    if (criticalRaw === "") {
+      isCritical = undefined;
+    } else if (criticalRaw === "true") {
+      isCritical = true;
+    } else if (criticalRaw === "false") {
+      isCritical = false;
+    } else {
+      throw new Error("invalid critical flag");
+    }
 
     if (ids.has(id)) throw new Error("duplicate id");
     ids.add(id);
